@@ -1,7 +1,7 @@
 # CC_Bank — Laboratório de segurança de transações bancárias
 
 **Data:** 2026-10-31
-**Status:** aprovada. Revisão em 2026-10-31: validação da senha do cliente em transação separada (seções 4.4, 4.5, 7.3, 8.1, 9.2).
+**Status:** aprovada. Revisões em 2026-10-31: (1) validação da senha do cliente em transação separada (seções 4.4, 4.5, 7.3, 8.1, 9.2); (2) senhas trafegadas e armazenadas em MD5 e último login cifrado com AES por lado (seções 4.2, 4.5, 5.1, 6, 7.3, 8.1).
 
 ## 1. Objetivo
 
@@ -86,14 +86,14 @@ CC_Bank/
 |---|---|---|
 | 00001 | transacao | `login`, `validar_senha`, `saldo`, `saque`, `deposito`, `transferencia`, `extrato` |
 | 00002 | operador | login do operador |
-| 00003 | senha_operador | senha do operador (somente no login) |
+| 00003 | senha_operador | MD5 da senha do operador (somente no login) |
 | 00004 | cooperativa_operador | cooperativa do operador |
 | 00005 | pac | PAC do operador |
 | 00006 | terminal | terminal do operador |
 | 00007 | nome_operador | nome do operador (resposta do login) |
 | 00010 | cooperativa_conta | cooperativa da conta |
 | 00011 | conta | número da conta |
-| 00012 | senha_conta | senha da conta (6 dígitos) |
+| 00012 | senha_conta | MD5 da senha da conta (somente na `validar_senha`) |
 | 00020 | cooperativa_destino | cooperativa da conta destino |
 | 00021 | conta_destino | número da conta destino |
 | 00030 | valor | valor da operação |
@@ -144,6 +144,7 @@ O catálogo vive no módulo `ccbank-protocol` e é a fonte única dos nomes usad
 - O login apenas valida operador e senha e devolve cooperativa/PAC/terminal cadastrados. **Não há sessão**: toda mensagem seguinte traz 00002 e 00004–00006, e o servidor v1 **confia** nesses campos sem conferir.
 - A senha do cliente é conferida numa **transação separada**, `validar_senha`, antes de **todas** as operações (saldo, saque, depósito, transferência e extrato). Na transferência, valida-se a conta de origem. A validação responde `000`, `002` (senha inválida), `004` (conta inexistente) ou `006`; não altera saldo nem gera lançamento, mas é gravada no jornal.
 - As operações não levam a senha (00012); se vier, é ignorada. O cliente só envia a operação depois de receber `000` na validação.
+- As senhas (00003 e 00012) trafegam como **MD5 em hexadecimal minúsculo** (32 caracteres, bytes UTF-8, sem salt), calculado pelo cliente. O banco guarda o mesmo MD5 e o servidor compara o texto recebido com o guardado.
 - **O servidor v1 não liga a validação à operação**: aceita a operação sem verificar se houve validação antes (não há sessão). Essa é uma vulnerabilidade de propósito do v1 (ataques #10 e #11 da seção 7.3).
 - Saque e transferência são recusados se o saldo for insuficiente. Não há cheque especial.
 - Valor deve ser maior que zero e ter no máximo duas casas decimais.
@@ -160,9 +161,9 @@ Dois bancos, `ccbank_v1` e `ccbank_v2`, para uso manual; e `ccbank_v1_teste` e `
 - **cooperativa**: id, codigo `CHAR(4)` único, nome.
 - **pac**: id, cooperativa_id, codigo `CHAR(3)`, nome. Único por (cooperativa_id, codigo).
 - **terminal**: id, pac_id, codigo `CHAR(3)`. Único por (pac_id, codigo).
-- **operador**: id, login único, senha (texto puro), nome, terminal_id **único** (um operador por terminal), ativo.
+- **operador**: id, login único, senha `CHAR(32)` (MD5 em hexadecimal, sem salt), nome, terminal_id **único** (um operador por terminal), ativo.
 - **cliente**: id, nome, cpf único.
-- **conta**: id, cooperativa_id, numero `CHAR(6)`, cliente_id único (uma conta por titular), senha `CHAR(6)` (texto puro), saldo `NUMERIC(15,2)` com `CHECK (saldo >= 0)`. Única por (cooperativa_id, numero).
+- **conta**: id, cooperativa_id, numero `CHAR(6)`, cliente_id único (uma conta por titular), senha `CHAR(32)` (MD5 em hexadecimal, sem salt), saldo `NUMERIC(15,2)` com `CHECK (saldo >= 0)`. Única por (cooperativa_id, numero).
 - **transacao** (jornal):
   - id, data_hora, tipo (`LOGIN`, `VALIDAR_SENHA`, `SALDO`, `SAQUE`, `DEPOSITO`, `TRANSFERENCIA`, `EXTRATO`, `INVALIDA`);
   - operador_login, cooperativa, pac, terminal — **texto, exatamente como vieram na mensagem**;
@@ -177,7 +178,7 @@ Dois bancos, `ccbank_v1` e `ccbank_v2`, para uso manual; e `ccbank_v1_teste` e `
 ### 5.2 Dados iniciais (iguais nos dois lados)
 
 - 3 cooperativas (0001, 0002, 0003), 2 PACs em cada, 2 terminais por PAC: 12 terminais.
-- 12 operadores, um por terminal, incluindo `rodrigop`. Senhas simples, documentadas no README.
+- 12 operadores, um por terminal, incluindo `rodrigop`. Senhas simples, documentadas no README, gravadas com `md5()` do PostgreSQL.
 - 30 contas, 10 por cooperativa, com saldos entre 0 e 10.000 e senhas de 6 dígitos documentadas.
 - Script de **massa de carga**, que cria milhares de contas para os benchmarks.
 - Script de **reset**, que limpa jornal e lançamentos e restaura os saldos ao estado inicial.
@@ -204,7 +205,7 @@ Dois bancos, `ccbank_v1` e `ccbank_v2`, para uso manual; e `ccbank_v1_teste` e `
     00030 valor ............... 150.00  →  1.50   [ADULTERADO: regra "saque-centavos"]
 ```
 
-- Senhas aparecem em claro no log do v1, de propósito.
+- Senhas aparecem como MD5 sem salt nos logs do v1 (equivalentes à senha para autenticar), de propósito.
 - Nos benchmarks, o nível de log é configurável e sempre **igual nos dois lados**. O padrão é um resumo por transação.
 
 ## 7. Interceptador
@@ -253,6 +254,9 @@ Cada aba mantém um **histórico** de trocas (hora, direção, transação, se f
 | 9 | Captura passiva | — | senhas de operador e de conta legíveis no log do interceptador |
 | 10 | Validação falsificada | resposta | `validar_senha` com senha errada: 00090=002 vira 000 e o cliente segue para a operação |
 | 11 | Operação sem validação | — | saque/transferência enviado (ou reenviado) sem `validar_senha` antes é efetivado |
+| 12 | Reuso do hash (*pass-the-hash*) | requisição | MD5 capturado no log/interceptador é aceito como se fosse a senha |
+| 13 | Quebra do hash | — | MD5 sem salt de senha de 6 dígitos (ou senha fraca de operador) é quebrado por força bruta |
+| 14 | Chave AES no código | — | chave extraída do `.jar` decifra `dados/ultimo-login-*.dat` e revela o último operador de cada lado |
 
 ### 7.4 Comportamento do cliente com o interceptador
 
@@ -266,6 +270,8 @@ Cada aba mantém um **histórico** de trocas (hora, direção, transação, se f
 - Janela 1280×800 dividida em **duas metades iguais e fixas**: Esquerdo · v1 original | Direito · v2 evoluções. Cada metade é o mesmo componente (`PainelLado`), configurado por versão.
 - Cabeçalho de cada metade: estado da conexão (host:porta), caixa "Via interceptador" (alterável apenas com a metade deslogada) e dados do operador logado (login, cooperativa, PAC, terminal).
 - Fluxo: tela de login do operador → barra de operações **Saldo, Saque, Depósito, Transferência, Extrato, Sair**. Sair apenas volta ao login.
+- O cliente envia o MD5 das senhas digitadas (operador e cliente); os campos continuam recebendo a senha normal.
+- **Último login por lado:** após um login bem-sucedido, o login é gravado em `dados/ultimo-login-esquerdo.dat` ou `dados/ultimo-login-direito.dat`, cifrado com `AES/CBC/PKCS5Padding` (chave de 128 bits fixa no código, IV aleatório no início do arquivo, conteúdo em Base64). Ao abrir, cada metade preenche o campo de usuário com o seu último login (nunca a senha); arquivo ausente ou inválido deixa o campo vazio e registra um aviso no log.
 - Formulários com cooperativa e número da conta, valor quando aplicável, conta destino na transferência, período no extrato e **senha do cliente** em campo mascarado.
 - Executar faz duas chamadas na mesma tarefa: primeiro `validar_senha`; só com `000` envia a operação, sem a senha. Falha na validação mostra o erro e não envia a operação. O painel de mensagens mostra as duas trocas e o resultado mostra o tempo de cada etapa.
 - Resultado: mensagem de retorno, titular, saldo, id da transação e tempo de resposta em ms. O extrato aparece em tabela (data/hora, descrição, C/D, valor, saldo após).
