@@ -76,6 +76,7 @@ class ClienteBancoIT {
         iniciar(amb);
         Resposta r = cliente.login("rodrigop", "senha123");
         assertTrue(r.sucesso());
+        assertEquals(Optional.of("e7d80ffeefa212b7c5c55700e4f7193e"), r.requisicao().primeiro(Rotulo.SENHA_OPERADOR));
         assertTrue(cliente.logado());
         assertEquals("rodrigop", cliente.operador());
         assertEquals("0001", cliente.cooperativa());
@@ -162,7 +163,7 @@ class ClienteBancoIT {
         assertEquals(2, r.respostas().size());
         assertTrue(r.validacao().sucesso());
         assertFalse(r.operacao().requisicao().primeiro(Rotulo.SENHA_CONTA).isPresent());
-        assertEquals(Optional.of("123456"), r.validacao().requisicao().primeiro(Rotulo.SENHA_CONTA));
+        assertEquals(Optional.of("e10adc3949ba59abbe56e057f20f883e"), r.validacao().requisicao().primeiro(Rotulo.SENHA_CONTA));
         assertEquals(1, BancoTeste.contar(ds, "select count(*) from transacao where tipo='VALIDAR_SENHA' and codigo_retorno='000'"));
         assertEquals(1, BancoTeste.contar(ds, "select count(*) from transacao where tipo='SAQUE' and codigo_retorno='000'"));
     }

@@ -6,6 +6,7 @@ import java.util.List;
 
 import br.com.ccbank.protocolo.Mensagem;
 import br.com.ccbank.protocolo.Rotulo;
+import br.com.ccbank.protocolo.SenhaHash;
 
 /**
  * Operações do cliente sobre o protocolo. Guarda o operador logado e o terminal devolvido
@@ -42,7 +43,7 @@ public final class ClienteBanco {
         Mensagem req = new Mensagem()
                 .adicionar(Rotulo.TRANSACAO, "login")
                 .adicionar(Rotulo.OPERADOR, login)
-                .adicionar(Rotulo.SENHA_OPERADOR, senha);
+                .adicionar(Rotulo.SENHA_OPERADOR, SenhaHash.md5(senha));
         Resposta r = conexao.enviar(req);
         if (r.sucesso()) {
             Mensagem m = r.mensagem();
@@ -89,9 +90,10 @@ public final class ClienteBanco {
         conexao.fechar();
     }
 
-    /** Confere a senha do cliente; deve preceder cada operação (as operações não levam a senha). */
+    /** Confere a senha do cliente (enviada em MD5); deve preceder cada operação, que não leva a senha. */
     public Resposta validarSenha(String coop, String conta, String senha) throws IOException {
-        return conexao.enviar(comConta("validar_senha", coop, conta).adicionar(Rotulo.SENHA_CONTA, senha));
+        return conexao.enviar(comConta("validar_senha", coop, conta)
+                .adicionar(Rotulo.SENHA_CONTA, SenhaHash.md5(senha)));
     }
 
     /**
