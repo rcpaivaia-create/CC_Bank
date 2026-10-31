@@ -51,6 +51,20 @@ final class BancoTeste {
         }
     }
 
+    static String titular(DataSource ds, String coop, String conta) throws SQLException {
+        try (Connection c = ds.getConnection();
+                PreparedStatement ps = c.prepareStatement(
+                        "select cl.nome from conta ct join cooperativa co on co.id = ct.cooperativa_id"
+                                + " join cliente cl on cl.id = ct.cliente_id where co.codigo = ? and ct.numero = ?")) {
+            ps.setString(1, coop);
+            ps.setString(2, conta);
+            try (ResultSet rs = ps.executeQuery()) {
+                rs.next();
+                return rs.getString(1);
+            }
+        }
+    }
+
     static int contar(DataSource ds, String sql) throws SQLException {
         try (Connection c = ds.getConnection(); Statement st = c.createStatement(); ResultSet rs = st.executeQuery(sql)) {
             rs.next();
