@@ -1,6 +1,8 @@
 package br.com.ccbank.servidor.dados;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Uma linha da tabela {@code transacao}, preenchida aos poucos durante o processamento.
@@ -26,6 +28,16 @@ public final class RegistroJornal {
     private boolean intercredis;
     private String ipOrigem;
     private Integer duracaoMs;
+    private final List<NovoLancamento> lancamentos = new ArrayList<>();
+
+    /** Lançamentos gravados com o jornal se a transação for efetivada. */
+    public List<NovoLancamento> getLancamentos() {
+        return lancamentos;
+    }
+
+    public void adicionarLancamento(NovoLancamento lancamento) {
+        lancamentos.add(lancamento);
+    }
 
     public String getTipo() {
         return tipo;

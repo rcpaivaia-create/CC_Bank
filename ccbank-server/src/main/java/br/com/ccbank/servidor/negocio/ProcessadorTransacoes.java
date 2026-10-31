@@ -15,8 +15,10 @@ import br.com.ccbank.protocolo.Campo;
 import br.com.ccbank.protocolo.CodigoRetorno;
 import br.com.ccbank.protocolo.Mensagem;
 import br.com.ccbank.protocolo.Rotulo;
+import br.com.ccbank.servidor.dados.NovoLancamento;
 import br.com.ccbank.servidor.dados.RegistroJornal;
 import br.com.ccbank.servidor.dados.RepositorioJornal;
+import br.com.ccbank.servidor.dados.RepositorioLancamentos;
 
 /**
  * Despacha cada requisição para a sua {@link Operacao}, numa transação de banco, e grava
@@ -35,6 +37,8 @@ public final class ProcessadorTransacoes {
         this.ds = ds;
         operacoes.put("login", new OperacaoLogin());
         operacoes.put("saldo", new OperacaoSaldo());
+        operacoes.put("saque", new OperacaoSaque());
+        operacoes.put("deposito", new OperacaoDeposito());
     }
 
     public Mensagem processar(Mensagem req, String ipOrigem) {
@@ -60,6 +64,9 @@ public final class ProcessadorTransacoes {
                 jornal.setCodigoRetorno(CodigoRetorno.SUCESSO.codigo());
                 jornal.setDuracaoMs(decorrido(inicio));
                 long id = RepositorioJornal.inserir(c, jornal);
+                for (NovoLancamento l : jornal.getLancamentos()) {
+                    RepositorioLancamentos.inserir(c, l.contaId(), id, l.natureza(), l.descricao(), l.valor(), l.saldoApos());
+                }
                 c.commit();
                 return resposta(CodigoRetorno.SUCESSO, op.mensagemSucesso(), corpo, id);
             } catch (Recusa r) {
