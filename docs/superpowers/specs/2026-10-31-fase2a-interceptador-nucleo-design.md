@@ -181,8 +181,15 @@ execuções.
 
 ### 8.3 Ajuste de teste existente
 
-O `ClienteBancoIT` (módulo `ccbank-tests`) fixa a porta 8001, que a 2a passa a usar de fato.
-Trocar por porta efêmera, para o teste não depender de nenhum interceptador no ar.
+O `ClienteBancoIT` tem um teste (`portaDeInterceptadorDaMensagemDeInterceptador`) que conecta
+à porta 8001 esperando que a conexão falhe, para verificar que o cliente nomeia o
+"Interceptador" (e não o "Servidor") quando o destino é uma porta de interceptador. Na 2a a
+8001 passa a ser usada de verdade, então um interceptador no ar durante a suíte faria esse
+teste falhar. A escolha do nome em `ConexaoServidor` depende só do número da porta
+(`porta == lado.portaInterceptador()`), que é lógica pura. Extrair essa escolha para um
+método testável e cobri-la por um **teste de unidade** determinístico (sem socket), e remover
+o teste de integração que dependia da 8001 estar livre. É um refactor que preserva o
+comportamento (a mensagem exibida continua idêntica) e não toca em nada vulnerável do v1.
 
 ## 9. Entregáveis e critério de pronto
 
