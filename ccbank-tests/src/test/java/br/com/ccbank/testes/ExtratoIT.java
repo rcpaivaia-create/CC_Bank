@@ -3,9 +3,15 @@ package br.com.ccbank.testes;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import javax.sql.DataSource;
 
@@ -90,6 +96,29 @@ class ExtratoIT {
         assertEquals(200, saldos.size());
         assertEquals("1006.00", saldos.get(0));
         assertEquals("1205.00", saldos.get(199));
+    }
+
+    @ParameterizedTest
+    @EnumSource(Ambiente.class)
+    void saldosEncadeadosAposOperacoesConcorrentes(Ambiente amb) throws Exception {
+        preparar(amb);
+        ExecutorService pool = Executors.newFixedThreadPool(20);
+        List<Future<Mensagem>> resultados = new ArrayList<>();
+        for (int i = 0; i < 150; i++) {
+            resultados.add(pool.submit(() -> executar(Requisicoes.deposito("0001", "100001", "123456", "1.00"))));
+        }
+        pool.shutdown();
+        assertTrue(pool.awaitTermination(60, TimeUnit.SECONDS));
+        for (Future<Mensagem> f : resultados) {
+            assertEquals(Optional.of("000"), f.get().primeiro(Rotulo.CODIGO_RETORNO));
+        }
+        Mensagem r = executar(Requisicoes.extrato("0001", "100001", "123456", null, null));
+        List<String> valores = todos(r, Rotulo.LANC_VALOR);
+        List<String> saldos = todos(r, Rotulo.LANC_SALDO_APOS);
+        for (int i = 1; i < saldos.size(); i++) {
+            BigDecimal esperado = new BigDecimal(saldos.get(i - 1)).add(new BigDecimal(valores.get(i)));
+            assertEquals(esperado, new BigDecimal(saldos.get(i)), "lançamento " + i + " fora de ordem");
+        }
     }
 
     @ParameterizedTest

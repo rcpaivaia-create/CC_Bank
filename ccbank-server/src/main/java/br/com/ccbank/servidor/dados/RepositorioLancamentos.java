@@ -15,7 +15,11 @@ public final class RepositorioLancamentos {
 
     private static final ZoneId FUSO = ZoneId.of("America/Sao_Paulo");
 
-    /** Os N mais recentes do período, reordenados do mais antigo para o mais novo. */
+    /**
+     * Os N mais recentes do período, reordenados do mais antigo para o mais novo. A ordem é
+     * pelo id: ele é gerado depois que a conta foi travada, enquanto {@code data_hora} (now())
+     * marca o início da transação e pode inverter operações concorrentes na mesma conta.
+     */
     private static final String SQL_LISTAR =
             "select data_hora, descricao, natureza, valor, saldo_apos, contraparte from ("
                     + " select l.id, l.data_hora, l.descricao, l.natureza, l.valor, l.saldo_apos,"
@@ -25,8 +29,8 @@ public final class RepositorioLancamentos {
                     + "    where l2.transacao_id = l.transacao_id and l2.id <> l.id limit 1) as contraparte"
                     + " from lancamento l"
                     + " where l.conta_id = ? and l.data_hora >= ?::date and l.data_hora < ?::date + 1"
-                    + " order by l.data_hora desc, l.id desc limit ?"
-                    + ") recentes order by data_hora, id";
+                    + " order by l.id desc limit ?"
+                    + ") recentes order by id";
 
     private RepositorioLancamentos() {
     }
