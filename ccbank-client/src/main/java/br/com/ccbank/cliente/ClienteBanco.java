@@ -89,31 +89,49 @@ public final class ClienteBanco {
         conexao.fechar();
     }
 
-    public Resposta saldo(String coop, String conta, String senha) throws IOException {
-        return conexao.enviar(comConta("saldo", coop, conta, senha));
+    /** Confere a senha do cliente; deve preceder cada operação (as operações não levam a senha). */
+    public Resposta validarSenha(String coop, String conta, String senha) throws IOException {
+        return conexao.enviar(comConta("validar_senha", coop, conta).adicionar(Rotulo.SENHA_CONTA, senha));
     }
 
-    public Resposta saque(String coop, String conta, String senha, String valorDigitado) throws IOException {
-        return conexao.enviar(comConta("saque", coop, conta, senha)
+    /**
+     * Valida a senha e, só se a validação devolver {@code 000}, executa a operação.
+     * Falha de comunicação em qualquer etapa é repassada como {@link IOException}.
+     */
+    public ResultadoValidado executarComValidacao(String coop, String conta, String senha, OperacaoCliente operacao)
+            throws IOException {
+        Resposta validacao = validarSenha(coop, conta, senha);
+        if (!validacao.sucesso()) {
+            return new ResultadoValidado(validacao, null);
+        }
+        return new ResultadoValidado(validacao, operacao.executar());
+    }
+
+    public Resposta saldo(String coop, String conta) throws IOException {
+        return conexao.enviar(comConta("saldo", coop, conta));
+    }
+
+    public Resposta saque(String coop, String conta, String valorDigitado) throws IOException {
+        return conexao.enviar(comConta("saque", coop, conta)
                 .adicionar(Rotulo.VALOR, EntradaValor.normalizar(valorDigitado)));
     }
 
-    public Resposta deposito(String coop, String conta, String senha, String valorDigitado) throws IOException {
-        return conexao.enviar(comConta("deposito", coop, conta, senha)
+    public Resposta deposito(String coop, String conta, String valorDigitado) throws IOException {
+        return conexao.enviar(comConta("deposito", coop, conta)
                 .adicionar(Rotulo.VALOR, EntradaValor.normalizar(valorDigitado)));
     }
 
-    public Resposta transferencia(String coop, String conta, String senha,
+    public Resposta transferencia(String coop, String conta,
             String coopDestino, String contaDestino, String valorDigitado) throws IOException {
-        return conexao.enviar(comConta("transferencia", coop, conta, senha)
+        return conexao.enviar(comConta("transferencia", coop, conta)
                 .adicionar(Rotulo.COOPERATIVA_DESTINO, coopDestino.trim())
                 .adicionar(Rotulo.CONTA_DESTINO, contaDestino.trim())
                 .adicionar(Rotulo.VALOR, EntradaValor.normalizar(valorDigitado)));
     }
 
-    public Resposta extrato(String coop, String conta, String senha, String inicioDigitado, String fimDigitado)
+    public Resposta extrato(String coop, String conta, String inicioDigitado, String fimDigitado)
             throws IOException {
-        Mensagem req = comConta("extrato", coop, conta, senha);
+        Mensagem req = comConta("extrato", coop, conta);
         String inicio = EntradaValor.normalizarData(inicioDigitado);
         String fim = EntradaValor.normalizarData(fimDigitado);
         if (inicio != null) {
@@ -141,7 +159,7 @@ public final class ClienteBanco {
         return linhas;
     }
 
-    private Mensagem comConta(String transacao, String coop, String conta, String senha) {
+    private Mensagem comConta(String transacao, String coop, String conta) {
         if (!logado()) {
             throw new IllegalStateException("operador não logado");
         }
@@ -152,7 +170,6 @@ public final class ClienteBanco {
                 .adicionar(Rotulo.PAC, pac)
                 .adicionar(Rotulo.TERMINAL, terminal)
                 .adicionar(Rotulo.COOPERATIVA_CONTA, coop.trim())
-                .adicionar(Rotulo.CONTA, conta.trim())
-                .adicionar(Rotulo.SENHA_CONTA, senha);
+                .adicionar(Rotulo.CONTA, conta.trim());
     }
 }

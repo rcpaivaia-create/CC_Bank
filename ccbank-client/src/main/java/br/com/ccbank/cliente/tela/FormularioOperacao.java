@@ -85,18 +85,18 @@ final class FormularioOperacao extends JPanel {
         senha.setText("");
         limparResultado();
         ClienteBanco c = lado.cliente();
-        lado.executar(() -> {
+        lado.executar(() -> c.executarComValidacao(coop, numero, senhaCliente, () -> {
             switch (tipo) {
                 case SAQUE:
-                    return c.saque(coop, numero, senhaCliente, valorDigitado);
+                    return c.saque(coop, numero, valorDigitado);
                 case DEPOSITO:
-                    return c.deposito(coop, numero, senhaCliente, valorDigitado);
+                    return c.deposito(coop, numero, valorDigitado);
                 case TRANSFERENCIA:
-                    return c.transferencia(coop, numero, senhaCliente, coopDest, contaDest, valorDigitado);
+                    return c.transferencia(coop, numero, coopDest, contaDest, valorDigitado);
                 default:
-                    return c.saldo(coop, numero, senhaCliente);
+                    return c.saldo(coop, numero);
             }
-        }, this::mostrar);
+        }).resultadoFinal(), this::mostrar);
     }
 
     private void mostrar(Resposta r) {

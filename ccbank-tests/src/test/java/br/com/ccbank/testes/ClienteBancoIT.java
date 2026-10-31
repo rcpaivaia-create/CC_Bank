@@ -2,6 +2,7 @@ package br.com.ccbank.testes;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -27,6 +28,7 @@ import br.com.ccbank.cliente.ConexaoServidor;
 import br.com.ccbank.cliente.LadoCliente;
 import br.com.ccbank.cliente.LinhaExtrato;
 import br.com.ccbank.cliente.Resposta;
+import br.com.ccbank.cliente.ResultadoValidado;
 import br.com.ccbank.cliente.ServicoIndisponivelException;
 import br.com.ccbank.protocolo.Rotulo;
 import br.com.ccbank.servidor.ServidorTcp;
@@ -95,7 +97,7 @@ class ClienteBancoIT {
     @EnumSource(Ambiente.class)
     void operacaoSemLoginFalha(Ambiente amb) throws Exception {
         iniciar(amb);
-        assertThrows(IllegalStateException.class, () -> cliente.saldo("0001", "100001", "123456"));
+        assertThrows(IllegalStateException.class, () -> cliente.saldo("0001", "100001"));
     }
 
     @ParameterizedTest
@@ -103,7 +105,7 @@ class ClienteBancoIT {
     void saqueComValorBrasileiro(Ambiente amb) throws Exception {
         iniciar(amb);
         logar();
-        Resposta r = cliente.saque("0001", "100001", "123456", "1.000,00");
+        Resposta r = cliente.saque("0001", "100001", "1.000,00");
         assertTrue(r.sucesso(), r.texto());
         assertEquals(Optional.of("0.00"), r.mensagem().primeiro(Rotulo.SALDO));
         assertEquals(Optional.of("1000.00"), r.requisicao().primeiro(Rotulo.VALOR));
@@ -116,8 +118,8 @@ class ClienteBancoIT {
     void extratoAgrupaLinhas(Ambiente amb) throws Exception {
         iniciar(amb);
         logar();
-        assertTrue(cliente.deposito("0001", "100001", "123456", "10,00").sucesso());
-        Resposta r = cliente.extrato("0001", "100001", "123456", "", "");
+        assertTrue(cliente.deposito("0001", "100001", "10,00").sucesso());
+        Resposta r = cliente.extrato("0001", "100001", "", "");
         assertTrue(r.sucesso(), r.texto());
         List<LinhaExtrato> linhas = ClienteBanco.linhasExtrato(r.mensagem());
         assertEquals(1, linhas.size());
@@ -132,7 +134,7 @@ class ClienteBancoIT {
     void extratoComDataBrasileira(Ambiente amb) throws Exception {
         iniciar(amb);
         logar();
-        Resposta r = cliente.extrato("0001", "100001", "123456", "01/01/2020", "31/01/2020");
+        Resposta r = cliente.extrato("0001", "100001", "01/01/2020", "31/01/2020");
         assertTrue(r.sucesso(), r.texto());
         assertEquals(Optional.of("2020-01-01"), r.requisicao().primeiro(Rotulo.DATA_INICIO));
         assertEquals(0, ClienteBanco.linhasExtrato(r.mensagem()).size());
@@ -143,9 +145,75 @@ class ClienteBancoIT {
     void transferenciaPeloCliente(Ambiente amb) throws Exception {
         iniciar(amb);
         logar();
-        Resposta r = cliente.transferencia("0001", "100001", "123456", "0002", "200001", "10,00");
+        Resposta r = cliente.transferencia("0001", "100001", "0002", "200001", "10,00");
         assertTrue(r.sucesso(), r.texto());
         assertEquals(Optional.of("990.00"), r.mensagem().primeiro(Rotulo.SALDO));
+    }
+
+    @ParameterizedTest
+    @EnumSource(Ambiente.class)
+    void validacaoEOperacao(Ambiente amb) throws Exception {
+        iniciar(amb);
+        logar();
+        ResultadoValidado r = cliente.executarComValidacao("0001", "100001", "123456",
+                () -> cliente.saque("0001", "100001", "10,00"));
+        assertTrue(r.sucesso(), r.resultadoFinal().texto());
+        assertEquals(2, r.respostas().size());
+        assertTrue(r.validacao().sucesso());
+        assertFalse(r.operacao().requisicao().primeiro(Rotulo.SENHA_CONTA).isPresent());
+        assertEquals(Optional.of("123456"), r.validacao().requisicao().primeiro(Rotulo.SENHA_CONTA));
+        assertEquals(1, BancoTeste.contar(ds, "select count(*) from transacao where tipo='VALIDAR_SENHA' and codigo_retorno='000'"));
+        assertEquals(1, BancoTeste.contar(ds, "select count(*) from transacao where tipo='SAQUE' and codigo_retorno='000'"));
+    }
+
+    @ParameterizedTest
+    @EnumSource(Ambiente.class)
+    void senhaErradaNaoEnviaOperacao(Ambiente amb) throws Exception {
+        iniciar(amb);
+        logar();
+        ResultadoValidado r = cliente.executarComValidacao("0001", "100001", "000000",
+                () -> cliente.saque("0001", "100001", "10,00"));
+        assertFalse(r.sucesso());
+        assertEquals("002", r.resultadoFinal().codigo());
+        assertNull(r.operacao());
+        assertEquals(1, r.respostas().size());
+        assertEquals(0, BancoTeste.contar(ds, "select count(*) from transacao where tipo='SAQUE'"));
+    }
+
+    @ParameterizedTest
+    @EnumSource(Ambiente.class)
+    void contaInexistenteNaoEnviaOperacao(Ambiente amb) throws Exception {
+        iniciar(amb);
+        logar();
+        ResultadoValidado r = cliente.executarComValidacao("0001", "999999", "123456",
+                () -> cliente.saldo("0001", "999999"));
+        assertEquals("004", r.resultadoFinal().codigo());
+        assertNull(r.operacao());
+        assertEquals(0, BancoTeste.contar(ds, "select count(*) from transacao where tipo='SALDO'"));
+    }
+
+    @ParameterizedTest
+    @EnumSource(Ambiente.class)
+    void operacaoRecusadaAposValidacao(Ambiente amb) throws Exception {
+        iniciar(amb);
+        logar();
+        ResultadoValidado r = cliente.executarComValidacao("0001", "100002", "123456",
+                () -> cliente.saque("0001", "100002", "5.000,00"));
+        assertTrue(r.validacao().sucesso());
+        assertFalse(r.sucesso());
+        assertEquals("003", r.resultadoFinal().codigo());
+    }
+
+    @ParameterizedTest
+    @EnumSource(Ambiente.class)
+    void quedaEntreAsEtapas(Ambiente amb) throws Exception {
+        iniciar(amb);
+        logar();
+        assertThrows(IOException.class, () -> cliente.executarComValidacao("0001", "100001", "123456", () -> {
+            servidor.parar();
+            return cliente.saque("0001", "100001", "10,00");
+        }));
+        assertEquals(0, BancoTeste.contar(ds, "select count(*) from transacao where tipo='SAQUE'"));
     }
 
     @Test
@@ -174,8 +242,8 @@ class ClienteBancoIT {
         servidor.parar();
         servidor = new ServidorTcp(porta, new ProcessadorTransacoes(ds), amb.lado());
         servidor.iniciar();
-        assertThrows(IOException.class, () -> cliente.saldo("0001", "100001", "123456"));
-        assertTrue(cliente.saldo("0001", "100001", "123456").sucesso());
+        assertThrows(IOException.class, () -> cliente.saldo("0001", "100001"));
+        assertTrue(cliente.saldo("0001", "100001").sucesso());
     }
 
     @ParameterizedTest
@@ -191,7 +259,7 @@ class ClienteBancoIT {
         ExecutorService pool = Executors.newFixedThreadPool(20);
         List<Future<Resposta>> respostas = new ArrayList<>();
         for (String[] conta : contas) {
-            respostas.add(pool.submit(() -> cliente.saldo(conta[0], conta[1], "123456")));
+            respostas.add(pool.submit(() -> cliente.saldo(conta[0], conta[1])));
         }
         pool.shutdown();
         assertTrue(pool.awaitTermination(30, TimeUnit.SECONDS));

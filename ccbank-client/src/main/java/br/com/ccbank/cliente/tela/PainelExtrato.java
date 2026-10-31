@@ -68,7 +68,8 @@ final class PainelExtrato extends JPanel {
         situacao.setText(" ");
         modelo.setRowCount(0);
         ClienteBanco c = lado.cliente();
-        lado.executar(() -> c.extrato(coop, numero, senhaCliente, dataInicio, dataFim), this::mostrar);
+        lado.executar(() -> c.executarComValidacao(coop, numero, senhaCliente,
+                () -> c.extrato(coop, numero, dataInicio, dataFim)).resultadoFinal(), this::mostrar);
     }
 
     private void mostrar(Resposta r) {
