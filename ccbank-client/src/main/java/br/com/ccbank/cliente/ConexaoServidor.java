@@ -29,7 +29,8 @@ public final class ConexaoServidor {
     private final String host;
     private final int porta;
     private final Logger log;
-    private Socket socket;
+    /** Volátil: {@link #fechar()} fecha sem o lock de {@link #enviar}, acordando uma leitura bloqueada. */
+    private volatile Socket socket;
     private InputStream in;
     private OutputStream out;
 
@@ -65,16 +66,19 @@ public final class ConexaoServidor {
         }
     }
 
-    public synchronized void fechar() {
-        if (socket != null) {
+    /**
+     * Fecha a conexão sem esperar uma requisição em andamento: a leitura bloqueada recebe
+     * uma exceção e {@link #enviar} a repassa. A próxima chamada reconecta.
+     */
+    public void fechar() {
+        Socket s = socket;
+        socket = null;
+        if (s != null) {
             try {
-                socket.close();
+                s.close();
             } catch (IOException e) {
                 log.debug("Erro ao fechar conexão", e);
             }
-            socket = null;
-            in = null;
-            out = null;
         }
     }
 
