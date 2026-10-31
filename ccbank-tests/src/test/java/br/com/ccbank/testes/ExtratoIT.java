@@ -46,11 +46,11 @@ class ExtratoIT {
     @EnumSource(Ambiente.class)
     void extratoSemDatasTrazUltimos30Dias(Ambiente amb) throws Exception {
         preparar(amb);
-        executar(Requisicoes.deposito("0001", "100001", "123456", "10.00"));
-        executar(Requisicoes.saque("0001", "100001", "123456", "5.00"));
-        executar(Requisicoes.transferencia("0001", "100001", "123456", "0002", "200001", "1.00"));
+        executar(Requisicoes.deposito("0001", "100001", "10.00"));
+        executar(Requisicoes.saque("0001", "100001", "5.00"));
+        executar(Requisicoes.transferencia("0001", "100001", "0002", "200001", "1.00"));
 
-        Mensagem r = executar(Requisicoes.extrato("0001", "100001", "123456", null, null));
+        Mensagem r = executar(Requisicoes.extrato("0001", "100001", null, null));
         assertEquals(Optional.of("000"), r.primeiro(Rotulo.CODIGO_RETORNO));
         assertEquals(Optional.of("Maria Souza"), r.primeiro(Rotulo.TITULAR));
         assertEquals(Optional.of("3"), r.primeiro(Rotulo.QTD_LANCAMENTOS));
@@ -66,8 +66,8 @@ class ExtratoIT {
     @EnumSource(Ambiente.class)
     void contraparteDoLadoQueRecebe(Ambiente amb) throws Exception {
         preparar(amb);
-        executar(Requisicoes.transferencia("0001", "100001", "123456", "0002", "200001", "1.00"));
-        Mensagem r = executar(Requisicoes.extrato("0002", "200001", "123456", null, null));
+        executar(Requisicoes.transferencia("0001", "100001", "0002", "200001", "1.00"));
+        Mensagem r = executar(Requisicoes.extrato("0002", "200001", null, null));
         assertEquals(Arrays.asList("TRANSFERENCIA RECEBIDA"), todos(r, Rotulo.LANC_TIPO));
         assertEquals(Arrays.asList("0001/100001"), todos(r, Rotulo.LANC_CONTRAPARTE));
     }
@@ -76,8 +76,8 @@ class ExtratoIT {
     @EnumSource(Ambiente.class)
     void extratoForaDoPeriodo(Ambiente amb) throws Exception {
         preparar(amb);
-        executar(Requisicoes.deposito("0001", "100001", "123456", "10.00"));
-        Mensagem r = executar(Requisicoes.extrato("0001", "100001", "123456", "2020-01-01", "2020-01-31"));
+        executar(Requisicoes.deposito("0001", "100001", "10.00"));
+        Mensagem r = executar(Requisicoes.extrato("0001", "100001", "2020-01-01", "2020-01-31"));
         assertEquals(Optional.of("000"), r.primeiro(Rotulo.CODIGO_RETORNO));
         assertEquals(Optional.of("0"), r.primeiro(Rotulo.QTD_LANCAMENTOS));
         assertEquals(0, todos(r, Rotulo.LANC_DATA_HORA).size());
@@ -88,9 +88,9 @@ class ExtratoIT {
     void limitaA200MaisRecentes(Ambiente amb) throws Exception {
         preparar(amb);
         for (int i = 0; i < 205; i++) {
-            executar(Requisicoes.deposito("0001", "100001", "123456", "1.00"));
+            executar(Requisicoes.deposito("0001", "100001", "1.00"));
         }
-        Mensagem r = executar(Requisicoes.extrato("0001", "100001", "123456", null, null));
+        Mensagem r = executar(Requisicoes.extrato("0001", "100001", null, null));
         assertEquals(Optional.of("200"), r.primeiro(Rotulo.QTD_LANCAMENTOS));
         List<String> saldos = todos(r, Rotulo.LANC_SALDO_APOS);
         assertEquals(200, saldos.size());
@@ -105,14 +105,14 @@ class ExtratoIT {
         ExecutorService pool = Executors.newFixedThreadPool(20);
         List<Future<Mensagem>> resultados = new ArrayList<>();
         for (int i = 0; i < 150; i++) {
-            resultados.add(pool.submit(() -> executar(Requisicoes.deposito("0001", "100001", "123456", "1.00"))));
+            resultados.add(pool.submit(() -> executar(Requisicoes.deposito("0001", "100001", "1.00"))));
         }
         pool.shutdown();
         assertTrue(pool.awaitTermination(60, TimeUnit.SECONDS));
         for (Future<Mensagem> f : resultados) {
             assertEquals(Optional.of("000"), f.get().primeiro(Rotulo.CODIGO_RETORNO));
         }
-        Mensagem r = executar(Requisicoes.extrato("0001", "100001", "123456", null, null));
+        Mensagem r = executar(Requisicoes.extrato("0001", "100001", null, null));
         List<String> valores = todos(r, Rotulo.LANC_VALOR);
         List<String> saldos = todos(r, Rotulo.LANC_SALDO_APOS);
         for (int i = 1; i < saldos.size(); i++) {
@@ -125,7 +125,7 @@ class ExtratoIT {
     @EnumSource(Ambiente.class)
     void dataMalformada(Ambiente amb) throws Exception {
         preparar(amb);
-        Mensagem r = executar(Requisicoes.extrato("0001", "100001", "123456", "31/10/2026", null));
+        Mensagem r = executar(Requisicoes.extrato("0001", "100001", "31/10/2026", null));
         assertEquals(Optional.of("006"), r.primeiro(Rotulo.CODIGO_RETORNO));
     }
 
@@ -133,7 +133,7 @@ class ExtratoIT {
     @EnumSource(Ambiente.class)
     void inicioDepoisDoFim(Ambiente amb) throws Exception {
         preparar(amb);
-        Mensagem r = executar(Requisicoes.extrato("0001", "100001", "123456", "2026-10-31", "2026-10-01"));
+        Mensagem r = executar(Requisicoes.extrato("0001", "100001", "2026-10-31", "2026-10-01"));
         assertEquals(Optional.of("006"), r.primeiro(Rotulo.CODIGO_RETORNO));
     }
 
@@ -141,7 +141,7 @@ class ExtratoIT {
     @EnumSource(Ambiente.class)
     void extratoNaoGeraLancamento(Ambiente amb) throws Exception {
         preparar(amb);
-        executar(Requisicoes.extrato("0001", "100001", "123456", null, null));
+        executar(Requisicoes.extrato("0001", "100001", null, null));
         assertEquals(0, BancoTeste.contar(ds, "select count(*) from lancamento"));
         assertEquals(1, BancoTeste.contar(ds, "select count(*) from transacao where tipo='EXTRATO' and codigo_retorno='000'"));
     }

@@ -36,6 +36,7 @@ public final class ProcessadorTransacoes {
     public ProcessadorTransacoes(DataSource ds) {
         this.ds = ds;
         operacoes.put("login", new OperacaoLogin());
+        operacoes.put("validar_senha", new OperacaoValidarSenha());
         operacoes.put("saldo", new OperacaoSaldo());
         operacoes.put("saque", new OperacaoSaque());
         operacoes.put("deposito", new OperacaoDeposito());

@@ -3,7 +3,10 @@ package br.com.ccbank.testes;
 import br.com.ccbank.protocolo.Mensagem;
 import br.com.ccbank.protocolo.Rotulo;
 
-/** Monta requisições como o cliente faria, com o operador rodrigop em 0001/001/001. */
+/**
+ * Monta requisições como o cliente faria, com o operador rodrigop em 0001/001/001.
+ * A senha do cliente só vai na validação; as operações não a levam.
+ */
 final class Requisicoes {
 
     static final String OPERADOR = "rodrigop";
@@ -35,34 +38,36 @@ final class Requisicoes {
                 .adicionar(Rotulo.TERMINAL, terminal);
     }
 
-    static Mensagem conta(Mensagem m, String coop, String conta, String senha) {
+    static Mensagem conta(Mensagem m, String coop, String conta) {
         return m.adicionar(Rotulo.COOPERATIVA_CONTA, coop)
-                .adicionar(Rotulo.CONTA, conta)
-                .adicionar(Rotulo.SENHA_CONTA, senha);
+                .adicionar(Rotulo.CONTA, conta);
     }
 
-    static Mensagem saldo(String coop, String conta, String senha) {
-        return conta(cabecalho("saldo"), coop, conta, senha);
+    static Mensagem validarSenha(String coop, String conta, String senha) {
+        return conta(cabecalho("validar_senha"), coop, conta).adicionar(Rotulo.SENHA_CONTA, senha);
     }
 
-    static Mensagem saque(String coop, String conta, String senha, String valor) {
-        return conta(cabecalho("saque"), coop, conta, senha).adicionar(Rotulo.VALOR, valor);
+    static Mensagem saldo(String coop, String conta) {
+        return conta(cabecalho("saldo"), coop, conta);
     }
 
-    static Mensagem deposito(String coop, String conta, String senha, String valor) {
-        return conta(cabecalho("deposito"), coop, conta, senha).adicionar(Rotulo.VALOR, valor);
+    static Mensagem saque(String coop, String conta, String valor) {
+        return conta(cabecalho("saque"), coop, conta).adicionar(Rotulo.VALOR, valor);
     }
 
-    static Mensagem transferencia(String coop, String conta, String senha,
-            String coopDestino, String contaDestino, String valor) {
-        return conta(cabecalho("transferencia"), coop, conta, senha)
+    static Mensagem deposito(String coop, String conta, String valor) {
+        return conta(cabecalho("deposito"), coop, conta).adicionar(Rotulo.VALOR, valor);
+    }
+
+    static Mensagem transferencia(String coop, String conta, String coopDestino, String contaDestino, String valor) {
+        return conta(cabecalho("transferencia"), coop, conta)
                 .adicionar(Rotulo.COOPERATIVA_DESTINO, coopDestino)
                 .adicionar(Rotulo.CONTA_DESTINO, contaDestino)
                 .adicionar(Rotulo.VALOR, valor);
     }
 
-    static Mensagem extrato(String coop, String conta, String senha, String inicio, String fim) {
-        Mensagem m = conta(cabecalho("extrato"), coop, conta, senha);
+    static Mensagem extrato(String coop, String conta, String inicio, String fim) {
+        Mensagem m = conta(cabecalho("extrato"), coop, conta);
         if (inicio != null) {
             m.adicionar(Rotulo.DATA_INICIO, inicio);
         }

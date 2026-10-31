@@ -59,7 +59,7 @@ class ServidorTcpIT {
         int porta = iniciar(amb);
         try (ClienteTeste c = new ClienteTeste(porta)) {
             assertEquals(Optional.of("000"), codigo(c.enviar(Requisicoes.login("rodrigop", "senha123"))));
-            Mensagem saldo = c.enviar(Requisicoes.saldo("0001", "100001", "123456"));
+            Mensagem saldo = c.enviar(Requisicoes.saldo("0001", "100001"));
             assertEquals(Optional.of("000"), codigo(saldo));
             assertEquals(Optional.of("1000.00"), saldo.primeiro(Rotulo.SALDO));
         }
@@ -73,7 +73,7 @@ class ServidorTcpIT {
         try (ClienteTeste c = new ClienteTeste(porta)) {
             c.enviarBytes("lixo\n\n".getBytes(StandardCharsets.UTF_8));
             assertEquals(Optional.of("006"), codigo(c.receber()));
-            assertEquals(Optional.of("000"), codigo(c.enviar(Requisicoes.saldo("0001", "100001", "123456"))));
+            assertEquals(Optional.of("000"), codigo(c.enviar(Requisicoes.saldo("0001", "100001"))));
         }
     }
 
@@ -85,7 +85,7 @@ class ServidorTcpIT {
             c.enviarBytes("00001=sal".getBytes(StandardCharsets.UTF_8));
         }
         try (ClienteTeste c = new ClienteTeste(porta)) {
-            assertEquals(Optional.of("000"), codigo(c.enviar(Requisicoes.saldo("0001", "100001", "123456"))));
+            assertEquals(Optional.of("000"), codigo(c.enviar(Requisicoes.saldo("0001", "100001"))));
         }
     }
 
@@ -104,7 +104,7 @@ class ServidorTcpIT {
             assertTrue(c.conexaoFechada());
         }
         try (ClienteTeste c = new ClienteTeste(porta)) {
-            assertEquals(Optional.of("000"), codigo(c.enviar(Requisicoes.saldo("0001", "100001", "123456"))));
+            assertEquals(Optional.of("000"), codigo(c.enviar(Requisicoes.saldo("0001", "100001"))));
         }
     }
 
@@ -118,7 +118,7 @@ class ServidorTcpIT {
         for (int i = 0; i < 100; i++) {
             resultados.add(pool.submit(() -> {
                 try (ClienteTeste c = new ClienteTeste(porta)) {
-                    return codigo(c.enviar(Requisicoes.saque("0001", "100002", "123456", "10.00")));
+                    return codigo(c.enviar(Requisicoes.saque("0001", "100002", "10.00")));
                 }
             }));
         }

@@ -16,10 +16,13 @@ import br.com.ccbank.servidor.dados.RepositorioContas;
 /** Validações comuns às operações, na ordem fixada pelo plano da fase 1b. */
 final class Regras {
 
-    /** Cabeçalho de origem exigido em toda transação que não é login (spec, tabela 4.4). */
+    /**
+     * Cabeçalho de origem e conta exigidos em toda transação que não é login (spec, tabela 4.4).
+     * A senha do cliente (00012) só é exigida na {@code validar_senha}.
+     */
     static final Rotulo[] ORIGEM = {
         Rotulo.OPERADOR, Rotulo.COOPERATIVA_OPERADOR, Rotulo.PAC, Rotulo.TERMINAL,
-        Rotulo.COOPERATIVA_CONTA, Rotulo.CONTA, Rotulo.SENHA_CONTA
+        Rotulo.COOPERATIVA_CONTA, Rotulo.CONTA
     };
 
     private Regras() {
@@ -48,10 +51,10 @@ final class Regras {
     }
 
     /**
-     * Localiza a conta de origem (00010/00011) e confere a senha (00012).
-     * Registra no jornal a conta e a marcação Intercredis.
+     * Localiza a conta de origem (00010/00011) e registra no jornal a conta e a marcação Intercredis.
+     * Não confere senha: no v1 a operação confia que o cliente chamou {@code validar_senha} antes.
      */
-    static Conta autenticarConta(Connection c, Mensagem req, RegistroJornal jornal) throws Recusa, SQLException {
+    static Conta localizarConta(Connection c, Mensagem req, RegistroJornal jornal) throws Recusa, SQLException {
         String coop = valor(req, Rotulo.COOPERATIVA_CONTA);
         String numero = valor(req, Rotulo.CONTA);
         jornal.setCooperativaOrigem(coop);
@@ -62,9 +65,13 @@ final class Regras {
         }
         jornal.setContaOrigemId(conta.get().id());
         jornal.setIntercredis(!conta.get().cooperativa().equals(jornal.getCooperativa()));
-        if (!conta.get().senha().equals(valor(req, Rotulo.SENHA_CONTA))) {
+        return conta.get();
+    }
+
+    /** Confere a senha do cliente (00012) com a da conta. */
+    static void conferirSenha(Conta conta, Mensagem req) throws Recusa {
+        if (!conta.senha().equals(valor(req, Rotulo.SENHA_CONTA))) {
             throw new Recusa(CodigoRetorno.SENHA_CONTA_INVALIDA);
         }
-        return conta.get();
     }
 }

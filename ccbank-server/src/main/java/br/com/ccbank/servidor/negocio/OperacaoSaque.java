@@ -25,7 +25,7 @@ final class OperacaoSaque implements Operacao {
         Regras.exigir(req, Regras.ORIGEM);
         Regras.exigir(req, Rotulo.VALOR);
         BigDecimal valor = Regras.valorOperacao(req, jornal);
-        Conta conta = RepositorioContas.buscarParaAtualizar(c, Regras.autenticarConta(c, req, jornal).id());
+        Conta conta = RepositorioContas.buscarParaAtualizar(c, Regras.localizarConta(c, req, jornal).id());
         if (conta.saldo().compareTo(valor) < 0) {
             throw new Recusa(CodigoRetorno.SALDO_INSUFICIENTE);
         }

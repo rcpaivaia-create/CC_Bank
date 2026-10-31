@@ -24,7 +24,7 @@ final class OperacaoDeposito implements Operacao {
         Regras.exigir(req, Regras.ORIGEM);
         Regras.exigir(req, Rotulo.VALOR);
         BigDecimal valor = Regras.valorOperacao(req, jornal);
-        Conta conta = RepositorioContas.buscarParaAtualizar(c, Regras.autenticarConta(c, req, jornal).id());
+        Conta conta = RepositorioContas.buscarParaAtualizar(c, Regras.localizarConta(c, req, jornal).id());
         BigDecimal saldo = conta.saldo().add(valor);
         RepositorioContas.atualizarSaldo(c, conta.id(), saldo);
         jornal.setSaldoAposOrigem(saldo);

@@ -43,7 +43,7 @@ final class OperacaoExtrato implements Operacao {
             throw new Recusa(CodigoRetorno.MENSAGEM_MALFORMADA);
         }
 
-        Conta conta = Regras.autenticarConta(c, req, jornal);
+        Conta conta = Regras.localizarConta(c, req, jornal);
         List<LancamentoExtrato> lancamentos = RepositorioLancamentos.listar(c, conta.id(), inicio, fim, LIMITE);
         Mensagem m = new Mensagem()
                 .adicionar(Rotulo.TITULAR, conta.titular())

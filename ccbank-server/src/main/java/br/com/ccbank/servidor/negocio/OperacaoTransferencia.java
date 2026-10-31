@@ -36,7 +36,7 @@ final class OperacaoTransferencia implements Operacao {
             throw new Recusa(CodigoRetorno.CONTA_DESTINO_IGUAL);
         }
 
-        Conta origem = Regras.autenticarConta(c, req, jornal);
+        Conta origem = Regras.localizarConta(c, req, jornal);
         Optional<Conta> destino = RepositorioContas.buscar(c, coopDestino, numeroDestino);
         if (!destino.isPresent()) {
             throw new Recusa(CodigoRetorno.CONTA_INEXISTENTE);

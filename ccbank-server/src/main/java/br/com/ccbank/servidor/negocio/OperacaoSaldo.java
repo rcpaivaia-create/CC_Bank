@@ -19,7 +19,7 @@ final class OperacaoSaldo implements Operacao {
     @Override
     public Mensagem executar(Connection c, Mensagem req, RegistroJornal jornal) throws Recusa, SQLException {
         Regras.exigir(req, Regras.ORIGEM);
-        Conta conta = Regras.autenticarConta(c, req, jornal);
+        Conta conta = Regras.localizarConta(c, req, jornal);
         return new Mensagem()
                 .adicionar(Rotulo.SALDO, FormatoValores.formatarValor(conta.saldo()))
                 .adicionar(Rotulo.TITULAR, conta.titular());

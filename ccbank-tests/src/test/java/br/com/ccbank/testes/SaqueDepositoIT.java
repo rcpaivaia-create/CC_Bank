@@ -37,7 +37,7 @@ class SaqueDepositoIT {
     @EnumSource(Ambiente.class)
     void saqueDebitaEGeraLancamento(Ambiente amb) throws Exception {
         preparar(amb);
-        Mensagem r = proc.processar(Requisicoes.saque("0001", "100001", "123456", "150.00"), "ip");
+        Mensagem r = proc.processar(Requisicoes.saque("0001", "100001", "150.00"), "ip");
         assertEquals(Optional.of("000"), r.primeiro(Rotulo.CODIGO_RETORNO));
         assertEquals(Optional.of("850.00"), r.primeiro(Rotulo.SALDO));
         assertEquals(Optional.of("Maria Souza"), r.primeiro(Rotulo.TITULAR));
@@ -54,7 +54,7 @@ class SaqueDepositoIT {
     @EnumSource(Ambiente.class)
     void saqueDoSaldoInteiro(Ambiente amb) throws Exception {
         preparar(amb);
-        assertEquals(Optional.of("000"), codigo(Requisicoes.saque("0001", "100002", "123456", "500.00")));
+        assertEquals(Optional.of("000"), codigo(Requisicoes.saque("0001", "100002", "500.00")));
         assertEquals(new BigDecimal("0.00"), BancoTeste.saldo(ds, "0001", "100002"));
     }
 
@@ -62,7 +62,7 @@ class SaqueDepositoIT {
     @EnumSource(Ambiente.class)
     void saqueUmCentavoAcima(Ambiente amb) throws Exception {
         preparar(amb);
-        assertEquals(Optional.of("003"), codigo(Requisicoes.saque("0001", "100002", "123456", "500.01")));
+        assertEquals(Optional.of("003"), codigo(Requisicoes.saque("0001", "100002", "500.01")));
         assertEquals(new BigDecimal("500.00"), BancoTeste.saldo(ds, "0001", "100002"));
         assertEquals(0, BancoTeste.contar(ds, "select count(*) from lancamento"));
         assertEquals(1, BancoTeste.contar(ds, "select count(*) from transacao where tipo='SAQUE' and codigo_retorno='003'"));
@@ -72,7 +72,7 @@ class SaqueDepositoIT {
     @EnumSource(Ambiente.class)
     void saqueContaZerada(Ambiente amb) throws Exception {
         preparar(amb);
-        assertEquals(Optional.of("003"), codigo(Requisicoes.saque("0001", "100010", "123456", "0.01")));
+        assertEquals(Optional.of("003"), codigo(Requisicoes.saque("0001", "100010", "0.01")));
     }
 
     static Stream<Arguments> valoresInvalidos() {
@@ -84,8 +84,8 @@ class SaqueDepositoIT {
     @MethodSource("valoresInvalidos")
     void valorInvalido(Ambiente amb, String valor) throws Exception {
         preparar(amb);
-        assertEquals(Optional.of("005"), codigo(Requisicoes.saque("0001", "100001", "123456", valor)));
-        assertEquals(Optional.of("005"), codigo(Requisicoes.deposito("0001", "100001", "123456", valor)));
+        assertEquals(Optional.of("005"), codigo(Requisicoes.saque("0001", "100001", valor)));
+        assertEquals(Optional.of("005"), codigo(Requisicoes.deposito("0001", "100001", valor)));
         assertEquals(new BigDecimal("1000.00"), BancoTeste.saldo(ds, "0001", "100001"));
     }
 
@@ -93,7 +93,7 @@ class SaqueDepositoIT {
     @EnumSource(Ambiente.class)
     void depositoCredita(Ambiente amb) throws Exception {
         preparar(amb);
-        Mensagem r = proc.processar(Requisicoes.deposito("0001", "100010", "123456", "10.50"), "ip");
+        Mensagem r = proc.processar(Requisicoes.deposito("0001", "100010", "10.50"), "ip");
         assertEquals(Optional.of("000"), r.primeiro(Rotulo.CODIGO_RETORNO));
         assertEquals(Optional.of("10.50"), r.primeiro(Rotulo.SALDO));
         assertEquals(1, BancoTeste.contar(ds, "select count(*) from lancamento where natureza='C' and descricao='DEPOSITO'"
@@ -102,17 +102,9 @@ class SaqueDepositoIT {
 
     @ParameterizedTest
     @EnumSource(Ambiente.class)
-    void depositoSenhaErrada(Ambiente amb) throws Exception {
-        preparar(amb);
-        assertEquals(Optional.of("002"), codigo(Requisicoes.deposito("0001", "100010", "111111", "10.00")));
-        assertEquals(new BigDecimal("0.00"), BancoTeste.saldo(ds, "0001", "100010"));
-    }
-
-    @ParameterizedTest
-    @EnumSource(Ambiente.class)
     void intercredisMarcado(Ambiente amb) throws Exception {
         preparar(amb);
-        assertEquals(Optional.of("000"), codigo(Requisicoes.saque("0002", "200001", "123456", "10.00")));
+        assertEquals(Optional.of("000"), codigo(Requisicoes.saque("0002", "200001", "10.00")));
         assertEquals(1, BancoTeste.contar(ds, "select count(*) from transacao where tipo='SAQUE' and intercredis"));
     }
 
@@ -121,7 +113,7 @@ class SaqueDepositoIT {
     void byteNuloNaOrigemRecusaComJornal(Ambiente amb) throws Exception {
         preparar(amb);
         Mensagem m = Requisicoes.conta(Requisicoes.cabecalho("saque", "rodrigop", "00\u000001", "001", "001"),
-                "0001", "100001", "123456").adicionar(Rotulo.VALOR, "10.00");
+                "0001", "100001").adicionar(Rotulo.VALOR, "10.00");
         assertEquals(Optional.of("006"), codigo(m));
         assertEquals(new BigDecimal("1000.00"), BancoTeste.saldo(ds, "0001", "100001"));
         assertEquals(1, BancoTeste.contar(ds, "select count(*) from transacao where tipo='SAQUE' and codigo_retorno='006'"
@@ -132,7 +124,7 @@ class SaqueDepositoIT {
     @EnumSource(Ambiente.class)
     void byteNuloNaContaRecusaComJornal(Ambiente amb) throws Exception {
         preparar(amb);
-        assertEquals(Optional.of("006"), codigo(Requisicoes.saldo("0001", "1000\u000001", "123456")));
+        assertEquals(Optional.of("006"), codigo(Requisicoes.saldo("0001", "1000\u000001")));
         assertEquals(1, BancoTeste.contar(ds, "select count(*) from transacao where tipo='SALDO' and codigo_retorno='006'"));
     }
 
@@ -145,7 +137,7 @@ class SaqueDepositoIT {
             gigante.append('9');
         }
         Mensagem m = Requisicoes.conta(Requisicoes.cabecalho("saque", "rodrigop", gigante.toString(), "001", "001"),
-                "0001", "100001", "123456").adicionar(Rotulo.VALOR, "10.00");
+                "0001", "100001").adicionar(Rotulo.VALOR, "10.00");
         assertEquals(Optional.of("000"), codigo(m));
         assertEquals(1, BancoTeste.contar(ds, "select count(*) from transacao where length(cooperativa) = 5000"));
     }

@@ -77,7 +77,7 @@ class LoginSaldoIT {
     @EnumSource(Ambiente.class)
     void saldoValido(Ambiente amb) throws Exception {
         preparar(amb);
-        Mensagem r = proc.processar(Requisicoes.saldo("0001", "100001", "123456"), "ip");
+        Mensagem r = proc.processar(Requisicoes.saldo("0001", "100001"), "ip");
         assertEquals(Optional.of("000"), codigo(r));
         assertEquals(Optional.of("1000.00"), r.primeiro(Rotulo.SALDO));
         assertEquals(Optional.of("Maria Souza"), r.primeiro(Rotulo.TITULAR));
@@ -88,29 +88,17 @@ class LoginSaldoIT {
 
     @ParameterizedTest
     @EnumSource(Ambiente.class)
-    void saldoSenhaErrada(Ambiente amb) throws Exception {
-        preparar(amb);
-        Mensagem r = proc.processar(Requisicoes.saldo("0001", "100001", "654321"), "ip");
-        assertEquals(Optional.of("002"), codigo(r));
-        assertFalse(r.primeiro(Rotulo.SALDO).isPresent());
-        assertTrue(r.primeiro(Rotulo.ID_TRANSACAO).isPresent());
-    }
-
-    @ParameterizedTest
-    @EnumSource(Ambiente.class)
     void saldoContaInexistente(Ambiente amb) throws Exception {
         preparar(amb);
-        assertEquals(Optional.of("004"), codigo(proc.processar(Requisicoes.saldo("0001", "999999", "123456"), "ip")));
+        assertEquals(Optional.of("004"), codigo(proc.processar(Requisicoes.saldo("0001", "999999"), "ip")));
     }
 
     @ParameterizedTest
     @EnumSource(Ambiente.class)
     void campoObrigatorioAusente(Ambiente amb) throws Exception {
         preparar(amb);
-        Mensagem semSenha = Requisicoes.cabecalho("saldo")
-                .adicionar(Rotulo.COOPERATIVA_CONTA, "0001")
-                .adicionar(Rotulo.CONTA, "100001");
-        assertEquals(Optional.of("006"), codigo(proc.processar(semSenha, "ip")));
+        Mensagem semConta = Requisicoes.cabecalho("saldo").adicionar(Rotulo.COOPERATIVA_CONTA, "0001");
+        assertEquals(Optional.of("006"), codigo(proc.processar(semConta, "ip")));
     }
 
     @ParameterizedTest
@@ -136,17 +124,10 @@ class LoginSaldoIT {
     void jornalGravaOrigemComoRecebida(Ambiente amb) throws Exception {
         preparar(amb);
         Mensagem m = Requisicoes.conta(Requisicoes.cabecalho("saldo", "fantasma", "9999", "777", "888"),
-                "0001", "100001", "123456");
+                "0001", "100001");
         assertEquals(Optional.of("000"), codigo(proc.processar(m, "10.0.0.7")));
         assertEquals(1, BancoTeste.contar(ds, "select count(*) from transacao where operador_login='fantasma'"
                 + " and cooperativa='9999' and pac='777' and terminal='888' and intercredis and ip_origem='10.0.0.7'"));
     }
 
-    @ParameterizedTest
-    @EnumSource(Ambiente.class)
-    void recusaTambemVaiParaOJornal(Ambiente amb) throws Exception {
-        preparar(amb);
-        proc.processar(Requisicoes.saldo("0001", "100001", "000000"), "ip");
-        assertEquals(1, BancoTeste.contar(ds, "select count(*) from transacao where codigo_retorno='002' and tipo='SALDO'"));
-    }
 }

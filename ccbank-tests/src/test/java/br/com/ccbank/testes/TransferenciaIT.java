@@ -40,7 +40,7 @@ class TransferenciaIT {
     @EnumSource(Ambiente.class)
     void transfereEntreCooperativas(Ambiente amb) throws Exception {
         preparar(amb);
-        Mensagem r = proc.processar(Requisicoes.transferencia("0001", "100001", "123456", "0002", "200001", "300.00"), "ip");
+        Mensagem r = proc.processar(Requisicoes.transferencia("0001", "100001", "0002", "200001", "300.00"), "ip");
         assertEquals(Optional.of("000"), r.primeiro(Rotulo.CODIGO_RETORNO));
         assertEquals(Optional.of("700.00"), r.primeiro(Rotulo.SALDO));
         assertEquals(new BigDecimal("700.00"), BancoTeste.saldo(ds, "0001", "100001"));
@@ -58,14 +58,14 @@ class TransferenciaIT {
     @EnumSource(Ambiente.class)
     void mesmaConta(Ambiente amb) throws Exception {
         preparar(amb);
-        assertEquals(Optional.of("007"), codigo(Requisicoes.transferencia("0001", "100001", "123456", "0001", "100001", "1.00")));
+        assertEquals(Optional.of("007"), codigo(Requisicoes.transferencia("0001", "100001", "0001", "100001", "1.00")));
     }
 
     @ParameterizedTest
     @EnumSource(Ambiente.class)
     void destinoInexistente(Ambiente amb) throws Exception {
         preparar(amb);
-        assertEquals(Optional.of("004"), codigo(Requisicoes.transferencia("0001", "100001", "123456", "0003", "999999", "1.00")));
+        assertEquals(Optional.of("004"), codigo(Requisicoes.transferencia("0001", "100001", "0003", "999999", "1.00")));
         assertEquals(new BigDecimal("1000.00"), BancoTeste.saldo(ds, "0001", "100001"));
     }
 
@@ -73,15 +73,8 @@ class TransferenciaIT {
     @EnumSource(Ambiente.class)
     void saldoInsuficiente(Ambiente amb) throws Exception {
         preparar(amb);
-        assertEquals(Optional.of("003"), codigo(Requisicoes.transferencia("0001", "100002", "123456", "0001", "100001", "500.01")));
+        assertEquals(Optional.of("003"), codigo(Requisicoes.transferencia("0001", "100002", "0001", "100001", "500.01")));
         assertEquals(0, BancoTeste.contar(ds, "select count(*) from lancamento"));
-    }
-
-    @ParameterizedTest
-    @EnumSource(Ambiente.class)
-    void senhaErrada(Ambiente amb) throws Exception {
-        preparar(amb);
-        assertEquals(Optional.of("002"), codigo(Requisicoes.transferencia("0001", "100001", "999999", "0001", "100002", "1.00")));
     }
 
     @ParameterizedTest
@@ -91,8 +84,8 @@ class TransferenciaIT {
         ExecutorService pool = Executors.newFixedThreadPool(20);
         List<Future<Optional<String>>> resultados = new ArrayList<>();
         for (int i = 0; i < 50; i++) {
-            resultados.add(pool.submit(() -> codigo(Requisicoes.transferencia("0001", "100001", "123456", "0001", "100002", "1.00"))));
-            resultados.add(pool.submit(() -> codigo(Requisicoes.transferencia("0001", "100002", "123456", "0001", "100001", "1.00"))));
+            resultados.add(pool.submit(() -> codigo(Requisicoes.transferencia("0001", "100001", "0001", "100002", "1.00"))));
+            resultados.add(pool.submit(() -> codigo(Requisicoes.transferencia("0001", "100002", "0001", "100001", "1.00"))));
         }
         pool.shutdown();
         assertTrue(pool.awaitTermination(30, TimeUnit.SECONDS), "transferências não terminaram em 30 s");
