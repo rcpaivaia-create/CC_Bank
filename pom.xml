@@ -118,6 +118,10 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-failsafe-plugin</artifactId>
+                        <configuration>
+                            <!-- permite -Dit.test=Classe sem falhar nos módulos que não têm a classe -->
+                            <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
+                        </configuration>
                         <executions>
                             <execution>
                                 <goals>
