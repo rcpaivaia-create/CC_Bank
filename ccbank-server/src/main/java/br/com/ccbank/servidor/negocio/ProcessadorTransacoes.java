@@ -39,6 +39,7 @@ public final class ProcessadorTransacoes {
         operacoes.put("saldo", new OperacaoSaldo());
         operacoes.put("saque", new OperacaoSaque());
         operacoes.put("deposito", new OperacaoDeposito());
+        operacoes.put("transferencia", new OperacaoTransferencia());
     }
 
     public Mensagem processar(Mensagem req, String ipOrigem) {
