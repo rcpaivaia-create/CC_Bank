@@ -19,22 +19,40 @@ public final class ServidorMain {
     private ServidorMain() {
     }
 
-    public static void main(String[] args) throws Exception {
-        Ambiente amb = Ambiente.V1;
-        for (String arg : args) {
-            if (arg.startsWith("--env=")) {
-                amb = Ambiente.porNome(arg.substring("--env=".length()));
-            }
+    public static void main(String[] args) {
+        int codigo = executar(args);
+        if (codigo != 0) {
+            System.exit(codigo);
         }
-        // Antes do primeiro uso do SLF4J: o logback.xml usa ccbank.env no nome do arquivo de log.
-        System.setProperty("ccbank.env", amb.name().toLowerCase(Locale.ROOT));
-        Logger log = LoggerFactory.getLogger(ServidorMain.class);
+    }
 
-        ConfiguracaoBanco cfg = ConfiguracaoBanco.carregar(ConfiguracaoBanco.arquivoPadrao());
-        DataSource ds = cfg.criarPool(amb.banco(), TAMANHO_POOL);
-        ServidorTcp servidor = new ServidorTcp(amb.porta(), new ProcessadorTransacoes(ds), amb.lado());
-        servidor.iniciar();
-        Runtime.getRuntime().addShutdownHook(new Thread(servidor::parar, "parada-" + amb.lado()));
-        log.info("Servidor {} escutando na porta {} (banco {}, {})", amb.lado(), amb.porta(), amb.banco(), cfg);
+    /**
+     * Inicia o servidor e retorna sem bloquear (a thread que aceita conexões mantém a JVM viva).
+     *
+     * @return 0 se o servidor subiu; 1 se falhou, com o motivo no log e no console
+     */
+    static int executar(String[] args) {
+        try {
+            Ambiente amb = Ambiente.V1;
+            for (String arg : args) {
+                if (arg.startsWith("--env=")) {
+                    amb = Ambiente.porNome(arg.substring("--env=".length()));
+                }
+            }
+            // Antes do primeiro uso do SLF4J: o logback.xml usa ccbank.env no nome do arquivo de log.
+            System.setProperty("ccbank.env", amb.name().toLowerCase(Locale.ROOT));
+            Logger log = LoggerFactory.getLogger(ServidorMain.class);
+
+            ConfiguracaoBanco cfg = ConfiguracaoBanco.carregar(ConfiguracaoBanco.arquivoPadrao());
+            DataSource ds = cfg.criarPool(amb.banco(), TAMANHO_POOL);
+            ServidorTcp servidor = new ServidorTcp(amb.porta(), new ProcessadorTransacoes(ds), amb.lado());
+            servidor.iniciar();
+            Runtime.getRuntime().addShutdownHook(new Thread(servidor::parar, "parada-" + amb.lado()));
+            log.info("Servidor {} escutando na porta {} (banco {}, {})", amb.lado(), amb.porta(), amb.banco(), cfg);
+            return 0;
+        } catch (Exception e) {
+            LoggerFactory.getLogger(ServidorMain.class).error("Falha ao iniciar o servidor: {}", e.getMessage(), e);
+            return 1;
+        }
     }
 }

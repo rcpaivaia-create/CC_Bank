@@ -33,7 +33,8 @@ if (-not (Test-Path $jar)) {
 $ambientes = if ($Ambiente -eq 'ambos') { @('v1', 'v2') } else { @($Ambiente) }
 foreach ($amb in $ambientes) {
     # chcp 65001: console em UTF-8 para acentos e setas do log
-    $comando = "title CC_Bank servidor $amb & chcp 65001 >nul & java -cp `"$jar`" br.com.ccbank.servidor.ServidorMain --env=$amb"
+    # || pause: se o servidor não subir, a janela fica aberta mostrando o motivo
+    $comando = "title CC_Bank servidor $amb & chcp 65001 >nul & java -cp `"$jar`" br.com.ccbank.servidor.ServidorMain --env=$amb || pause"
     Start-Process -FilePath 'cmd.exe' -ArgumentList '/c', $comando -WorkingDirectory $raiz
     Write-Host "Servidor $amb iniciado em nova janela."
 }
