@@ -1,0 +1,13 @@
+# Modelo do arquivo de credenciais do PostgreSQL.
+# Copie para config/db.properties (fora do git) e preencha usuário e senha.
+#
+# Os nomes dos bancos são fixos e definidos pela aplicação:
+#   ccbank_v1, ccbank_v2              (uso manual)
+#   ccbank_v1_teste, ccbank_v2_teste  (testes automatizados e benchmark)
+# O usuário informado precisa ter permissão para criar bancos (CREATEDB),
+# pois o script de setup cria os quatro.
+
+db.host=localhost
+db.porta=5432
+db.usuario=
+db.senha=

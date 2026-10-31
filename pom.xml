@@ -12,6 +12,8 @@
 
     <modules>
         <module>ccbank-protocol</module>
+        <module>ccbank-server</module>
+        <module>ccbank-tests</module>
     </modules>
 
     <properties>
@@ -33,6 +35,11 @@
             <dependency>
                 <groupId>br.com.ccbank</groupId>
                 <artifactId>ccbank-protocol</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>br.com.ccbank</groupId>
+                <artifactId>ccbank-server</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -88,7 +95,40 @@
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>3.5.2</version>
                 </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-failsafe-plugin</artifactId>
+                    <version>3.5.2</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-shade-plugin</artifactId>
+                    <version>3.6.0</version>
+                </plugin>
             </plugins>
         </pluginManagement>
     </build>
+
+    <profiles>
+        <!-- Testes de integração (*IT): exigem o PostgreSQL no ar. mvn -B clean verify -Pintegracao -->
+        <profile>
+            <id>integracao</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>integration-test</goal>
+                                    <goal>verify</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
