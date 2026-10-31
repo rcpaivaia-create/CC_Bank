@@ -1,0 +1,19 @@
+# Build
+target/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+
+# Credenciais locais
+config/db.properties
+
+# Gerados em execução
+logs/
+relatorios/
+resultados/*
+!resultados/historico.csv
