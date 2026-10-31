@@ -1,7 +1,7 @@
 # CC_Bank — Laboratório de segurança de transações bancárias
 
 **Data:** 2026-10-31
-**Status:** design aprovado em conversa; aguardando revisão desta spec
+**Status:** aprovada. Revisão em 2026-10-31: validação da senha do cliente em transação separada (seções 4.4, 4.5, 7.3, 8.1, 9.2).
 
 ## 1. Objetivo
 
@@ -84,7 +84,7 @@ CC_Bank/
 
 | Rótulo | Nome no log | Significado |
 |---|---|---|
-| 00001 | transacao | `login`, `saldo`, `saque`, `deposito`, `transferencia`, `extrato` |
+| 00001 | transacao | `login`, `validar_senha`, `saldo`, `saque`, `deposito`, `transferencia`, `extrato` |
 | 00002 | operador | login do operador |
 | 00003 | senha_operador | senha do operador (somente no login) |
 | 00004 | cooperativa_operador | cooperativa do operador |
@@ -132,7 +132,8 @@ O catálogo vive no módulo `ccbank-protocol` e é a fonte única dos nomes usad
 | Transação | Requisição (obrigatórios) | Resposta (além de 00090/00091) |
 |---|---|---|
 | login | 00002, 00003 | 00004, 00005, 00006, 00007 |
-| saldo | 00002, 00004–00006, 00010, 00011, 00012 | 00092, 00093, 00094 |
+| validar_senha | 00002, 00004–00006, 00010, 00011, 00012 | 00093 (em caso de sucesso), 00094 |
+| saldo | 00002, 00004–00006, 00010, 00011 | 00092, 00093, 00094 |
 | saque | idem saldo + 00030 | 00092, 00093, 00094 |
 | deposito | idem saldo + 00030 | 00092, 00093, 00094 |
 | transferencia | idem saldo + 00020, 00021, 00030 | 00092 (saldo da origem), 00093, 00094 |
@@ -141,7 +142,9 @@ O catálogo vive no módulo `ccbank-protocol` e é a fonte única dos nomes usad
 ### 4.5 Regras de negócio (v1)
 
 - O login apenas valida operador e senha e devolve cooperativa/PAC/terminal cadastrados. **Não há sessão**: toda mensagem seguinte traz 00002 e 00004–00006, e o servidor v1 **confia** nesses campos sem conferir.
-- A senha da conta é exigida em **todas** as operações, inclusive saldo e depósito. Na transferência, vale a senha da conta de origem.
+- A senha do cliente é conferida numa **transação separada**, `validar_senha`, antes de **todas** as operações (saldo, saque, depósito, transferência e extrato). Na transferência, valida-se a conta de origem. A validação responde `000`, `002` (senha inválida), `004` (conta inexistente) ou `006`; não altera saldo nem gera lançamento, mas é gravada no jornal.
+- As operações não levam a senha (00012); se vier, é ignorada. O cliente só envia a operação depois de receber `000` na validação.
+- **O servidor v1 não liga a validação à operação**: aceita a operação sem verificar se houve validação antes (não há sessão). Essa é uma vulnerabilidade de propósito do v1 (ataques #10 e #11 da seção 7.3).
 - Saque e transferência são recusados se o saldo for insuficiente. Não há cheque especial.
 - Valor deve ser maior que zero e ter no máximo duas casas decimais.
 - O operador pode atender contas de qualquer cooperativa. Uma operação é **Intercredis** quando a cooperativa da conta (de origem, na transferência) é diferente da cooperativa do operador informada na mensagem. Intercredis não tem regra própria; é apenas marcada no jornal.
@@ -161,7 +164,7 @@ Dois bancos, `ccbank_v1` e `ccbank_v2`, para uso manual; e `ccbank_v1_teste` e `
 - **cliente**: id, nome, cpf único.
 - **conta**: id, cooperativa_id, numero `CHAR(6)`, cliente_id único (uma conta por titular), senha `CHAR(6)` (texto puro), saldo `NUMERIC(15,2)` com `CHECK (saldo >= 0)`. Única por (cooperativa_id, numero).
 - **transacao** (jornal):
-  - id, data_hora, tipo (`LOGIN`, `SALDO`, `SAQUE`, `DEPOSITO`, `TRANSFERENCIA`, `EXTRATO`);
+  - id, data_hora, tipo (`LOGIN`, `VALIDAR_SENHA`, `SALDO`, `SAQUE`, `DEPOSITO`, `TRANSFERENCIA`, `EXTRATO`, `INVALIDA`);
   - operador_login, cooperativa, pac, terminal — **texto, exatamente como vieram na mensagem**;
   - conta_origem_id e conta_destino_id (referências opcionais), mais cooperativa/número de origem e destino em texto;
   - valor, saldo_apos_origem, saldo_apos_destino;
@@ -248,6 +251,8 @@ Cada aba mantém um **histórico** de trocas (hora, direção, transação, se f
 | 7 | Saldo exibido falso | resposta | 00092 alterado na resposta de saldo |
 | 8 | Replay | — | saque/depósito capturado reenviado N vezes e efetivado N vezes |
 | 9 | Captura passiva | — | senhas de operador e de conta legíveis no log do interceptador |
+| 10 | Validação falsificada | resposta | `validar_senha` com senha errada: 00090=002 vira 000 e o cliente segue para a operação |
+| 11 | Operação sem validação | — | saque/transferência enviado (ou reenviado) sem `validar_senha` antes é efetivado |
 
 ### 7.4 Comportamento do cliente com o interceptador
 
@@ -262,6 +267,7 @@ Cada aba mantém um **histórico** de trocas (hora, direção, transação, se f
 - Cabeçalho de cada metade: estado da conexão (host:porta), caixa "Via interceptador" (alterável apenas com a metade deslogada) e dados do operador logado (login, cooperativa, PAC, terminal).
 - Fluxo: tela de login do operador → barra de operações **Saldo, Saque, Depósito, Transferência, Extrato, Sair**. Sair apenas volta ao login.
 - Formulários com cooperativa e número da conta, valor quando aplicável, conta destino na transferência, período no extrato e **senha do cliente** em campo mascarado.
+- Executar faz duas chamadas na mesma tarefa: primeiro `validar_senha`; só com `000` envia a operação, sem a senha. Falha na validação mostra o erro e não envia a operação. O painel de mensagens mostra as duas trocas e o resultado mostra o tempo de cada etapa.
 - Resultado: mensagem de retorno, titular, saldo, id da transação e tempo de resposta em ms. O extrato aparece em tabela (data/hora, descrição, C/D, valor, saldo após).
 - Painel recolhível **Mensagens** em cada metade, com as mensagens enviadas e recebidas usando os nomes legíveis.
 - Chamadas de rede em `SwingWorker`. Erros de conexão aparecem na própria metade.
@@ -291,6 +297,7 @@ A mesma suíte roda contra v1 e v2 (teste parametrizado JUnit 5), com servidor e
 
 - login válido e inválido;
 - cada operação com sucesso, verificando saldo, jornal e lançamentos;
+- `validar_senha` com cada código de retorno, gravada no jornal; operação enviada sem validação prévia é aceita pelo v1 (documenta a vulnerabilidade);
 - saldo insuficiente, senha errada, conta inexistente, valor inválido, transferência para a própria conta;
 - marcação Intercredis; conteúdo e limites do extrato; gravação de recusas no jornal; detecção de divergência pela consulta do relatório;
 - concorrência: 100 saques simultâneos na mesma conta; o saldo nunca fica negativo e soma de saldos, jornal e lançamentos fecham.
