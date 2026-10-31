@@ -1,5 +1,6 @@
 package br.com.ccbank.protocolo;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -94,6 +95,30 @@ class CodecMensagemTest {
             }
         };
         assertThrows(MensagemMuitoGrandeException.class, () -> CodecMensagem.ler(infinito));
+    }
+
+    @Test
+    void mensagemMalformadaNaoDessincronizaOStream() throws IOException {
+        InputStream in = new ByteArrayInputStream(utf8(
+                "00001=saque\nlixo\n00002=rodrigop\n00030=150.00\n\n00001=saldo\n\n"));
+        assertThrows(MensagemMalformadaException.class, () -> CodecMensagem.ler(in));
+        assertEquals(new Mensagem().adicionar("00001", "saldo"), CodecMensagem.ler(in));
+        assertNull(CodecMensagem.ler(in));
+    }
+
+    @Test
+    void lerQuadroDevolveBytesCrusAteALinhaVazia() throws IOException {
+        InputStream in = new ByteArrayInputStream(utf8("00001=a\r\n\r\nlixo sem igual\n\n"));
+        assertArrayEquals(utf8("00001=a\r\n\r\n"), CodecMensagem.lerQuadro(in));
+        assertArrayEquals(utf8("lixo sem igual\n\n"), CodecMensagem.lerQuadro(in));
+        assertNull(CodecMensagem.lerQuadro(in));
+    }
+
+    @Test
+    void limiteRejeitaMultibyteAcimaDe65536Bytes() {
+        // "00093=" (6) + 32765 x "ç" (65530) + "\n\n" (2) = 65538 bytes, mas só 32773 caracteres
+        String valor = repetir("ç", 32765);
+        assertThrows(MensagemMuitoGrandeException.class, () -> CodecMensagem.decodificar(utf8("00093=" + valor + "\n\n")));
     }
 
     @Test

@@ -37,58 +37,90 @@ public final class CodecMensagem {
      * Lê uma mensagem do stream. O chamador deve passar um stream bufferizado,
      * pois a leitura é feita byte a byte.
      *
+     * <p>{@link MensagemMalformadaException} por conteúdo inválido consome o quadro
+     * inteiro, e o stream continua utilizável. Fim do stream no meio da mensagem e
+     * {@link MensagemMuitoGrandeException} deixam o stream inutilizável: feche a conexão.
+     *
      * @return a mensagem, ou {@code null} se o stream terminou antes do primeiro byte
      */
     public static Mensagem ler(InputStream in) throws IOException {
-        Mensagem mensagem = new Mensagem();
-        ByteArrayOutputStream linha = new ByteArrayOutputStream();
-        int total = 0;
+        byte[] quadro = lerQuadro(in);
+        return quadro == null ? null : analisar(quadro);
+    }
+
+    /**
+     * Lê os bytes crus de um quadro, até e incluindo a linha vazia, sem interpretar
+     * os campos. Aplica o limite de {@link #TAMANHO_MAXIMO} bytes.
+     *
+     * @return o quadro, ou {@code null} se o stream terminou antes do primeiro byte
+     */
+    public static byte[] lerQuadro(InputStream in) throws IOException {
+        ByteArrayOutputStream quadro = new ByteArrayOutputStream();
+        int bytesNaLinha = 0;
+        boolean linhaSoCr = false;
         while (true) {
             int b = in.read();
             if (b < 0) {
-                if (total == 0) {
+                if (quadro.size() == 0) {
                     return null;
                 }
                 throw new MensagemMalformadaException("fim do stream no meio da mensagem");
             }
-            total++;
-            if (total > TAMANHO_MAXIMO) {
+            if (quadro.size() >= TAMANHO_MAXIMO) {
                 throw new MensagemMuitoGrandeException("mensagem excede " + TAMANHO_MAXIMO + " bytes");
             }
-            if (b != '\n') {
-                linha.write(b);
-                continue;
-            }
-            byte[] bytes = linha.toByteArray();
-            linha.reset();
-            int tamanho = bytes.length;
-            if (tamanho > 0 && bytes[tamanho - 1] == '\r') {
-                tamanho--;
-            }
-            if (tamanho == 0) {
-                if (mensagem.tamanho() == 0) {
-                    throw new MensagemMalformadaException("mensagem sem campos");
+            quadro.write(b);
+            if (b == '\n') {
+                if (bytesNaLinha == 0 || linhaSoCr) {
+                    return quadro.toByteArray();
                 }
-                return mensagem;
+                bytesNaLinha = 0;
+                linhaSoCr = false;
+            } else {
+                bytesNaLinha++;
+                linhaSoCr = bytesNaLinha == 1 && b == '\r';
             }
-            adicionarLinha(mensagem, decodificarUtf8(bytes, tamanho));
         }
     }
 
     public static Mensagem decodificar(byte[] bytes) throws IOException {
-        Mensagem m = ler(new ByteArrayInputStream(bytes));
-        if (m == null) {
+        byte[] quadro = lerQuadro(new ByteArrayInputStream(bytes));
+        if (quadro == null) {
             throw new MensagemMalformadaException("mensagem vazia");
         }
-        return m;
+        return analisar(quadro);
     }
 
-    private static String decodificarUtf8(byte[] bytes, int tamanho) throws MensagemMalformadaException {
+    /** Interpreta um quadro completo, como devolvido por {@link #lerQuadro}. */
+    private static Mensagem analisar(byte[] quadro) throws MensagemMalformadaException {
+        Mensagem mensagem = new Mensagem();
+        int inicio = 0;
+        for (int i = 0; i < quadro.length; i++) {
+            if (quadro[i] != '\n') {
+                continue;
+            }
+            int tamanho = i - inicio;
+            if (tamanho > 0 && quadro[i - 1] == '\r') {
+                tamanho--;
+            }
+            if (tamanho == 0) {
+                break;
+            }
+            adicionarLinha(mensagem, decodificarUtf8(quadro, inicio, tamanho));
+            inicio = i + 1;
+        }
+        if (mensagem.tamanho() == 0) {
+            throw new MensagemMalformadaException("mensagem sem campos");
+        }
+        return mensagem;
+    }
+
+    private static String decodificarUtf8(byte[] bytes, int inicio, int tamanho) throws MensagemMalformadaException {
         CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder()
                 .onMalformedInput(CodingErrorAction.REPORT)
                 .onUnmappableCharacter(CodingErrorAction.REPORT);
         try {
-            return decoder.decode(ByteBuffer.wrap(bytes, 0, tamanho)).toString();
+            return decoder.decode(ByteBuffer.wrap(bytes, inicio, tamanho)).toString();
         } catch (CharacterCodingException e) {
             throw new MensagemMalformadaException("linha não é UTF-8 válido");
         }
