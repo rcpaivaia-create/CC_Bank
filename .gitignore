@@ -17,3 +17,6 @@ logs/
 relatorios/
 resultados/*
 !resultados/historico.csv
+
+# Último login cifrado de cada lado do cliente
+dados/
