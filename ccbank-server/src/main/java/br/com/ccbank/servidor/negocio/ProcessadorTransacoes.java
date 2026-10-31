@@ -46,10 +46,10 @@ public final class ProcessadorTransacoes {
     public Mensagem processar(Mensagem req, String ipOrigem) {
         long inicio = System.nanoTime();
         RegistroJornal jornal = new RegistroJornal();
-        jornal.setOperadorLogin(req.primeiro(Rotulo.OPERADOR).orElse(null));
-        jornal.setCooperativa(req.primeiro(Rotulo.COOPERATIVA_OPERADOR).orElse(null));
-        jornal.setPac(req.primeiro(Rotulo.PAC).orElse(null));
-        jornal.setTerminal(req.primeiro(Rotulo.TERMINAL).orElse(null));
+        jornal.setOperadorLogin(textoParaJornal(req, Rotulo.OPERADOR));
+        jornal.setCooperativa(textoParaJornal(req, Rotulo.COOPERATIVA_OPERADOR));
+        jornal.setPac(textoParaJornal(req, Rotulo.PAC));
+        jornal.setTerminal(textoParaJornal(req, Rotulo.TERMINAL));
         jornal.setIpOrigem(ipOrigem);
 
         String transacao = req.primeiro(Rotulo.TRANSACAO).orElse(null);
@@ -57,7 +57,8 @@ public final class ProcessadorTransacoes {
         jornal.setTipo(op == null ? "INVALIDA" : transacao.toUpperCase(Locale.ROOT));
 
         try (Connection c = ds.getConnection()) {
-            if (op == null) {
+            // O PostgreSQL não aceita o byte 0x00 em texto: recusa antes de qualquer consulta.
+            if (op == null || contemByteNulo(req)) {
                 return recusar(c, jornal, CodigoRetorno.MENSAGEM_MALFORMADA, inicio);
             }
             c.setAutoCommit(false);
@@ -107,6 +108,21 @@ public final class ProcessadorTransacoes {
             m.adicionar(Rotulo.ID_TRANSACAO, String.valueOf(idJornal));
         }
         return m;
+    }
+
+    /** Texto bruto do campo, com o byte nulo trocado por U+FFFD para poder ir ao jornal. */
+    private static String textoParaJornal(Mensagem req, Rotulo rotulo) {
+        String v = req.primeiro(rotulo).orElse(null);
+        return v == null ? null : v.replace('\u0000', '�');
+    }
+
+    private static boolean contemByteNulo(Mensagem req) {
+        for (Campo campo : req.campos()) {
+            if (campo.valor().indexOf('\u0000') >= 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static int decorrido(long inicio) {

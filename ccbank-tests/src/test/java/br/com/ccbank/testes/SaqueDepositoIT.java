@@ -118,6 +118,26 @@ class SaqueDepositoIT {
 
     @ParameterizedTest
     @EnumSource(Ambiente.class)
+    void byteNuloNaOrigemRecusaComJornal(Ambiente amb) throws Exception {
+        preparar(amb);
+        Mensagem m = Requisicoes.conta(Requisicoes.cabecalho("saque", "rodrigop", "00\u000001", "001", "001"),
+                "0001", "100001", "123456").adicionar(Rotulo.VALOR, "10.00");
+        assertEquals(Optional.of("006"), codigo(m));
+        assertEquals(new BigDecimal("1000.00"), BancoTeste.saldo(ds, "0001", "100001"));
+        assertEquals(1, BancoTeste.contar(ds, "select count(*) from transacao where tipo='SAQUE' and codigo_retorno='006'"
+                + " and cooperativa = '00' || chr(65533) || '01'"));
+    }
+
+    @ParameterizedTest
+    @EnumSource(Ambiente.class)
+    void byteNuloNaContaRecusaComJornal(Ambiente amb) throws Exception {
+        preparar(amb);
+        assertEquals(Optional.of("006"), codigo(Requisicoes.saldo("0001", "1000\u000001", "123456")));
+        assertEquals(1, BancoTeste.contar(ds, "select count(*) from transacao where tipo='SALDO' and codigo_retorno='006'"));
+    }
+
+    @ParameterizedTest
+    @EnumSource(Ambiente.class)
     void campoOrigemGiganteNaoQuebra(Ambiente amb) throws Exception {
         preparar(amb);
         StringBuilder gigante = new StringBuilder();
