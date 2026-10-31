@@ -5,7 +5,6 @@ import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
-import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
 import java.io.IOException;
@@ -13,7 +12,6 @@ import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 
 import javax.swing.BorderFactory;
-import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -134,11 +132,7 @@ public final class PainelLado extends JPanel {
 
     /** Painel mostrado depois do login. */
     JPanel criarPainelOperacoes() {
-        JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JButton sair = new JButton("Sair");
-        sair.addActionListener(e -> sair());
-        p.add(sair);
-        return p;
+        return new PainelOperacoes(this);
     }
 
     private JPanel criarCabecalho() {
