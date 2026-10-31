@@ -1,5 +1,5 @@
 -- CC_Bank: dados iniciais (spec, seção 5.2).
--- Operadores: senha123. Contas: 123456.
+-- Operadores: senha123. Contas: 123456. Gravadas como MD5 (hexadecimal minúsculo, sem salt).
 
 INSERT INTO cooperativa (codigo, nome) VALUES
     ('0001', 'Cooperativa Alfa'),
@@ -17,7 +17,7 @@ FROM pac p
 CROSS JOIN (VALUES ('001'), ('002')) AS v(codigo);
 
 INSERT INTO operador (login, senha, nome, terminal_id)
-SELECT v.login, 'senha123', v.nome, t.id
+SELECT v.login, md5('senha123'), v.nome, t.id
 FROM (VALUES
     ('rodrigop',    'Rodrigo P.',    '0001', '001', '001'),
     ('carla.dias',  'Carla Dias',    '0001', '001', '002'),
@@ -69,7 +69,7 @@ INSERT INTO cliente (nome, cpf) VALUES
     ('Marcos Batista',   '00000000030');
 
 INSERT INTO conta (cooperativa_id, numero, cliente_id, senha, saldo)
-SELECT co.id, v.numero, cl.id, '123456', v.saldo
+SELECT co.id, v.numero, cl.id, md5('123456'), v.saldo
 FROM (VALUES
     ('0001', '100001', '00000000001', 1000.00),
     ('0001', '100002', '00000000002', 500.00),

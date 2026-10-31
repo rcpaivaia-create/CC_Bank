@@ -14,6 +14,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 
 import br.com.ccbank.protocolo.Mensagem;
 import br.com.ccbank.protocolo.Rotulo;
+import br.com.ccbank.protocolo.SenhaHash;
 import br.com.ccbank.servidor.config.Ambiente;
 import br.com.ccbank.servidor.negocio.ProcessadorTransacoes;
 
@@ -55,6 +56,39 @@ class ValidarSenhaIT {
         assertFalse(r.primeiro(Rotulo.TITULAR).isPresent());
         assertTrue(r.primeiro(Rotulo.ID_TRANSACAO).isPresent());
         assertEquals(1, BancoTeste.contar(ds, "select count(*) from transacao where tipo='VALIDAR_SENHA' and codigo_retorno='002'"));
+    }
+
+    @ParameterizedTest
+    @EnumSource(Ambiente.class)
+    void senhaEmTextoPuroRecusada(Ambiente amb) throws Exception {
+        preparar(amb);
+        Mensagem r = executar(Requisicoes.validarSenhaBruta("0001", "100001", "123456"));
+        assertEquals(Optional.of("002"), r.primeiro(Rotulo.CODIGO_RETORNO));
+    }
+
+    @ParameterizedTest
+    @EnumSource(Ambiente.class)
+    void hashMaiusculoRecusado(Ambiente amb) throws Exception {
+        preparar(amb);
+        String maiusculo = SenhaHash.md5("123456").toUpperCase(java.util.Locale.ROOT);
+        Mensagem r = executar(Requisicoes.validarSenhaBruta("0001", "100001", maiusculo));
+        assertEquals(Optional.of("002"), r.primeiro(Rotulo.CODIGO_RETORNO));
+    }
+
+    /** Documenta o ataque #12: o hash capturado vale como a senha. */
+    @ParameterizedTest
+    @EnumSource(Ambiente.class)
+    void hashCapturadoAutentica(Ambiente amb) throws Exception {
+        preparar(amb);
+        Mensagem r = executar(Requisicoes.validarSenhaBruta("0001", "100001", "e10adc3949ba59abbe56e057f20f883e"));
+        assertEquals(Optional.of("000"), r.primeiro(Rotulo.CODIGO_RETORNO));
+    }
+
+    @ParameterizedTest
+    @EnumSource(Ambiente.class)
+    void acentosIguaisAoBanco(Ambiente amb) throws Exception {
+        preparar(amb);
+        assertEquals(SenhaHash.md5("çãé"), BancoTeste.texto(ds, "select md5('çãé')"));
     }
 
     @ParameterizedTest

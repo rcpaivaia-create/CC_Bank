@@ -25,8 +25,8 @@ class SetupBancoIT {
         DataSource ds = BancoTeste.recriar(amb);
         assertEquals(3, BancoTeste.contar(ds, "select count(*) from cooperativa"));
         assertEquals(12, BancoTeste.contar(ds, "select count(*) from terminal"));
-        assertEquals(12, BancoTeste.contar(ds, "select count(*) from operador where ativo and senha = 'senha123'"));
-        assertEquals(30, BancoTeste.contar(ds, "select count(*) from conta where senha = '123456'"));
+        assertEquals(12, BancoTeste.contar(ds, "select count(*) from operador where ativo and senha = md5('senha123')"));
+        assertEquals(30, BancoTeste.contar(ds, "select count(*) from conta where senha = md5('123456')"));
         assertEquals(new BigDecimal("1000.00"), BancoTeste.saldo(ds, "0001", "100001"));
         assertEquals(new BigDecimal("0.00"), BancoTeste.saldo(ds, "0001", "100010"));
         assertEquals(0, BancoTeste.contar(ds, "select count(*) from transacao"));

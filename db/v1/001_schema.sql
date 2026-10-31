@@ -1,5 +1,5 @@
 -- CC_Bank: schema do banco (spec, seção 5).
--- Senhas em texto puro e campos recebidos gravados como texto bruto: inseguro de propósito no v1.
+-- Senhas em MD5 sem salt e campos recebidos gravados como texto bruto: inseguro de propósito no v1.
 
 CREATE TABLE cooperativa (
     id SERIAL PRIMARY KEY,
@@ -25,7 +25,7 @@ CREATE TABLE terminal (
 CREATE TABLE operador (
     id SERIAL PRIMARY KEY,
     login VARCHAR(50) NOT NULL UNIQUE,
-    senha VARCHAR(50) NOT NULL,
+    senha CHAR(32) NOT NULL,
     nome VARCHAR(100) NOT NULL,
     terminal_id INTEGER NOT NULL UNIQUE REFERENCES terminal(id),
     ativo BOOLEAN NOT NULL DEFAULT TRUE
@@ -42,7 +42,7 @@ CREATE TABLE conta (
     cooperativa_id INTEGER NOT NULL REFERENCES cooperativa(id),
     numero CHAR(6) NOT NULL,
     cliente_id INTEGER NOT NULL UNIQUE REFERENCES cliente(id),
-    senha CHAR(6) NOT NULL,
+    senha CHAR(32) NOT NULL,
     saldo NUMERIC(15,2) NOT NULL CHECK (saldo >= 0),
     UNIQUE (cooperativa_id, numero)
 );

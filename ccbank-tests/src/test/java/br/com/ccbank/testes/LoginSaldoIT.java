@@ -17,6 +17,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import br.com.ccbank.protocolo.Mensagem;
 import br.com.ccbank.protocolo.Rotulo;
+import br.com.ccbank.protocolo.SenhaHash;
 import br.com.ccbank.servidor.config.Ambiente;
 import br.com.ccbank.servidor.negocio.ProcessadorTransacoes;
 
@@ -63,6 +64,30 @@ class LoginSaldoIT {
         assertEquals(Optional.of("001"), codigo(r));
         assertFalse(r.primeiro(Rotulo.COOPERATIVA_OPERADOR).isPresent());
         assertEquals(1, BancoTeste.contar(ds, "select count(*) from transacao where tipo='LOGIN' and codigo_retorno='001'"));
+    }
+
+    @ParameterizedTest
+    @EnumSource(Ambiente.class)
+    void senhaEmTextoPuroNaoAutentica(Ambiente amb) throws Exception {
+        preparar(amb);
+        assertEquals(Optional.of("001"), codigo(proc.processar(Requisicoes.loginComSenhaBruta("rodrigop", "senha123"), "ip")));
+    }
+
+    @ParameterizedTest
+    @EnumSource(Ambiente.class)
+    void hashMaiusculoNaoAutentica(Ambiente amb) throws Exception {
+        preparar(amb);
+        String maiusculo = SenhaHash.md5("senha123").toUpperCase(java.util.Locale.ROOT);
+        assertEquals(Optional.of("001"), codigo(proc.processar(Requisicoes.loginComSenhaBruta("rodrigop", maiusculo), "ip")));
+    }
+
+    @ParameterizedTest
+    @EnumSource(Ambiente.class)
+    void hashGravadoIgualAoDoJava(Ambiente amb) throws Exception {
+        preparar(amb);
+        assertEquals(SenhaHash.md5("senha123"), BancoTeste.texto(ds, "select senha from operador where login = 'rodrigop'"));
+        assertEquals(SenhaHash.md5("123456"), BancoTeste.texto(ds,
+                "select ct.senha from conta ct where ct.numero = '100001'"));
     }
 
     @ParameterizedTest

@@ -65,6 +65,13 @@ final class BancoTeste {
         }
     }
 
+    static String texto(DataSource ds, String sql) throws SQLException {
+        try (Connection c = ds.getConnection(); Statement st = c.createStatement(); ResultSet rs = st.executeQuery(sql)) {
+            rs.next();
+            return rs.getString(1);
+        }
+    }
+
     static int contar(DataSource ds, String sql) throws SQLException {
         try (Connection c = ds.getConnection(); Statement st = c.createStatement(); ResultSet rs = st.executeQuery(sql)) {
             rs.next();
