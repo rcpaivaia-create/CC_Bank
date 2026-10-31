@@ -47,7 +47,7 @@ public final class JanelaRelatorios extends JFrame {
     private static final DateTimeFormatter DATA_BR =
             DateTimeFormatter.ofPattern("dd/MM/uuuu").withResolverStyle(ResolverStyle.STRICT);
     private static final String[] OPERACOES =
-            {"Todas", "LOGIN", "SALDO", "SAQUE", "DEPOSITO", "TRANSFERENCIA", "EXTRATO", "INVALIDA"};
+            {"Todas", "LOGIN", "VALIDAR_SENHA", "SALDO", "SAQUE", "DEPOSITO", "TRANSFERENCIA", "EXTRATO", "INVALIDA"};
 
     private final ConfiguracaoBanco cfg;
     private final Map<Ambiente, DataSource> pools = new EnumMap<>(Ambiente.class);

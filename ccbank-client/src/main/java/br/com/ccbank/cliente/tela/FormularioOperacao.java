@@ -12,6 +12,7 @@ import javax.swing.JTextField;
 
 import br.com.ccbank.cliente.ClienteBanco;
 import br.com.ccbank.cliente.Resposta;
+import br.com.ccbank.cliente.ResultadoValidado;
 import br.com.ccbank.protocolo.Rotulo;
 
 /** Formulário de saldo, saque, depósito ou transferência, com a área de resultado. */
@@ -96,16 +97,17 @@ final class FormularioOperacao extends JPanel {
                 default:
                     return c.saldo(coop, numero);
             }
-        }).resultadoFinal(), this::mostrar);
+        }), ResultadoValidado::respostas, this::mostrar);
     }
 
-    private void mostrar(Resposta r) {
-        situacao.setText((r.sucesso() ? "✔ " : "✖ ") + r.texto());
-        situacao.setForeground(r.sucesso() ? VERDE : VERMELHO);
+    private void mostrar(ResultadoValidado resultado) {
+        situacao.setText(TextoResultado.situacao(resultado));
+        situacao.setForeground(resultado.sucesso() ? VERDE : VERMELHO);
+        Resposta r = resultado.resultadoFinal();
         r.mensagem().primeiro(Rotulo.TITULAR).ifPresent(t -> titular.setText("Titular: " + t));
         r.mensagem().primeiro(Rotulo.SALDO).ifPresent(s -> saldo.setText("Saldo: " + s));
         String id = r.mensagem().primeiro(Rotulo.ID_TRANSACAO).map(i -> "Transação " + i + " · ").orElse("");
-        transacao.setText(id + r.duracaoMs() + " ms");
+        transacao.setText(id + TextoResultado.tempos(resultado));
     }
 
     private void limparResultado() {

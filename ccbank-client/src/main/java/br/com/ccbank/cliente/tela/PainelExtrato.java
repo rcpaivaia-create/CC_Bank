@@ -15,7 +15,8 @@ import javax.swing.table.DefaultTableModel;
 
 import br.com.ccbank.cliente.ClienteBanco;
 import br.com.ccbank.cliente.LinhaExtrato;
-import br.com.ccbank.cliente.Resposta;
+import br.com.ccbank.cliente.ResultadoValidado;
+import br.com.ccbank.protocolo.Mensagem;
 import br.com.ccbank.protocolo.Rotulo;
 
 /** Extrato por período, em tabela. */
@@ -69,21 +70,22 @@ final class PainelExtrato extends JPanel {
         modelo.setRowCount(0);
         ClienteBanco c = lado.cliente();
         lado.executar(() -> c.executarComValidacao(coop, numero, senhaCliente,
-                () -> c.extrato(coop, numero, dataInicio, dataFim)).resultadoFinal(), this::mostrar);
+                () -> c.extrato(coop, numero, dataInicio, dataFim)), ResultadoValidado::respostas, this::mostrar);
     }
 
-    private void mostrar(Resposta r) {
-        if (!r.sucesso()) {
-            situacao.setText("✖ " + r.texto());
+    private void mostrar(ResultadoValidado resultado) {
+        if (!resultado.sucesso()) {
+            situacao.setText(TextoResultado.situacao(resultado));
             situacao.setForeground(new Color(0xB00020));
             return;
         }
-        List<LinhaExtrato> linhas = ClienteBanco.linhasExtrato(r.mensagem());
+        Mensagem r = resultado.operacao().mensagem();
+        List<LinhaExtrato> linhas = ClienteBanco.linhasExtrato(r);
         for (LinhaExtrato l : linhas) {
             modelo.addRow(new Object[] {l.dataHora().replace('T', ' '), l.tipo(), l.valor(), l.saldoApos(), l.contraparte()});
         }
-        String titular = r.mensagem().primeiro(Rotulo.TITULAR).orElse("");
-        situacao.setText("✔ " + titular + " · " + linhas.size() + " lançamento(s) · " + r.duracaoMs() + " ms");
+        String titular = r.primeiro(Rotulo.TITULAR).orElse("");
+        situacao.setText("✔ " + titular + " · " + linhas.size() + " lançamento(s) · " + TextoResultado.tempos(resultado));
         situacao.setForeground(new Color(0x2E7D32));
     }
 }

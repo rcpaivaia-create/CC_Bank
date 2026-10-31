@@ -8,8 +8,11 @@ import java.awt.Container;
 import java.awt.Font;
 import java.awt.GridLayout;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import javax.swing.BorderFactory;
 import javax.swing.JCheckBox;
@@ -85,15 +88,19 @@ public final class PainelLado extends JPanel {
 
     /**
      * Executa uma chamada ao servidor fora da EDT. Desabilita a metade durante a chamada,
-     * registra a troca no painel de mensagens e mostra falhas de comunicação na própria metade.
+     * registra as trocas no painel de mensagens e mostra falhas de comunicação na própria metade.
+     *
+     * @param trocas extrai do resultado as respostas a registrar (ex.: validação e operação)
      */
-    public void executar(Callable<Resposta> chamada, Consumer<Resposta> aoConcluir) {
+    public <T> void executar(Callable<T> chamada, Function<T, List<Resposta>> trocas, Consumer<T> aoConcluir) {
         erro.setText(" ");
         habilitar(centro, false);
         checkInterceptador.setEnabled(false);
         Tarefa.executar(chamada,
                 r -> {
-                    mensagens.registrar(cliente.endereco(), r);
+                    for (Resposta troca : trocas.apply(r)) {
+                        mensagens.registrar(cliente.endereco(), troca);
+                    }
                     atualizarCabecalho(VERDE);
                     aoConcluir.accept(r);
                 },
@@ -120,7 +127,7 @@ public final class PainelLado extends JPanel {
     }
 
     void entrar(String usuario, String senha) {
-        executar(() -> cliente.login(usuario, senha), r -> {
+        executar(() -> cliente.login(usuario, senha), Collections::singletonList, r -> {
             if (r.sucesso()) {
                 mostrar("operacoes");
             } else {
