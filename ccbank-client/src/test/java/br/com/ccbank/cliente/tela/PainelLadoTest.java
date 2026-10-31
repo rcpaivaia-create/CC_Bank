@@ -11,7 +11,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import br.com.ccbank.cliente.LadoCliente;
+import br.com.ccbank.cliente.Resposta;
 import br.com.ccbank.cliente.UltimoLogin;
+import br.com.ccbank.protocolo.Mensagem;
+import br.com.ccbank.protocolo.Rotulo;
 
 class PainelLadoTest {
 
@@ -42,6 +45,28 @@ class PainelLadoTest {
         UltimoLogin ul = new UltimoLogin(dir.resolve("esq.dat"));
         new PainelLado(LadoCliente.ESQUERDO, ul).loginEfetuado("carla.dias");
         assertEquals(Optional.of("carla.dias"), ul.ler());
+    }
+
+    private static Resposta respostaLogin(String codigo) {
+        return new Resposta(new Mensagem().adicionar(Rotulo.TRANSACAO, "login"),
+                new Mensagem().adicionar(Rotulo.CODIGO_RETORNO, codigo).adicionar(Rotulo.MENSAGEM_RETORNO, "x"), 1);
+    }
+
+    @Test
+    void loginAceitoEhGravadoComoFoiEnviado(@TempDir Path dir) {
+        UltimoLogin ul = new UltimoLogin(dir.resolve("esq.dat"));
+        new PainelLado(LadoCliente.ESQUERDO, ul).concluirLogin("rodrigop", respostaLogin("000"));
+        assertEquals(Optional.of("rodrigop"), ul.ler());
+    }
+
+    @Test
+    void loginRecusadoNaoEhGravado(@TempDir Path dir) throws Exception {
+        UltimoLogin ul = new UltimoLogin(dir.resolve("esq.dat"));
+        ul.salvar("ana.lima");
+        PainelLado p = new PainelLado(LadoCliente.ESQUERDO, ul);
+        p.concluirLogin("intruso", respostaLogin("001"));
+        assertEquals(Optional.of("ana.lima"), ul.ler());
+        assertEquals("login", p.cartaoAtual());
     }
 
     @Test

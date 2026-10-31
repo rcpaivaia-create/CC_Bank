@@ -15,17 +15,26 @@ import org.slf4j.LoggerFactory;
 /** Último login bem-sucedido de uma metade do cliente, guardado num arquivo cifrado ({@link CifraArquivo}). */
 public final class UltimoLogin {
 
-    private static final Logger LOG = LoggerFactory.getLogger(UltimoLogin.class);
-
     private final Path arquivo;
+    private final Logger log;
 
     public UltimoLogin(Path arquivo) {
         this.arquivo = arquivo;
+        this.log = LoggerFactory.getLogger(UltimoLogin.class);
     }
 
-    /** {@code dados/ultimo-login-esquerdo.dat} ou {@code dados/ultimo-login-direito.dat}, relativo ao diretório atual. */
+    /** Avisos vão para o log do lado ({@code logs/client-<lado>.log}). */
+    public UltimoLogin(Path arquivo, LadoCliente lado) {
+        this.arquivo = arquivo;
+        this.log = LoggerFactory.getLogger("ccbank.cliente." + lado.sufixoLog());
+    }
+
+    /**
+     * {@code dados/ultimo-login-esquerdo.dat} ou {@code dados/ultimo-login-direito.dat}, relativo ao
+     * diretório atual (a raiz do projeto quando aberto por {@code scripts/start-cliente.ps1}).
+     */
     public static UltimoLogin doLado(LadoCliente lado) {
-        return new UltimoLogin(Paths.get("dados", "ultimo-login-" + lado.sufixoLog() + ".dat"));
+        return new UltimoLogin(Paths.get("dados", "ultimo-login-" + lado.sufixoLog() + ".dat"), lado);
     }
 
     public Path arquivo() {
@@ -40,7 +49,7 @@ public final class UltimoLogin {
         } catch (NoSuchFileException e) {
             return Optional.empty();
         } catch (IOException | GeneralSecurityException e) {
-            LOG.warn("Arquivo de último login ignorado ({}): {}", arquivo, e.getMessage());
+            log.warn("Arquivo de último login ignorado ({}): {}", arquivo, e.getMessage());
             return Optional.empty();
         }
     }

@@ -11,6 +11,12 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.slf4j.LoggerFactory;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 
 class UltimoLoginTest {
 
@@ -46,6 +52,23 @@ class UltimoLoginTest {
         Path arquivo = dir.resolve("x.dat");
         Files.write(arquivo, "lixo".getBytes(UTF_8));
         assertEquals(Optional.empty(), new UltimoLogin(arquivo).ler());
+    }
+
+    @Test
+    void avisoDeArquivoInvalidoVaiParaOLogDoLado(@TempDir Path dir) throws Exception {
+        Path arquivo = dir.resolve("x.dat");
+        Files.write(arquivo, "lixo".getBytes(UTF_8));
+        Logger logLado = (Logger) LoggerFactory.getLogger("ccbank.cliente.esquerdo");
+        ListAppender<ILoggingEvent> capturados = new ListAppender<>();
+        capturados.start();
+        logLado.addAppender(capturados);
+        try {
+            assertEquals(Optional.empty(), new UltimoLogin(arquivo, LadoCliente.ESQUERDO).ler());
+            assertEquals(1, capturados.list.size());
+            assertEquals(Level.WARN, capturados.list.get(0).getLevel());
+        } finally {
+            logLado.detachAppender(capturados);
+        }
     }
 
     @Test

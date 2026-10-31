@@ -158,15 +158,18 @@ public final class PainelLado extends JPanel {
     }
 
     void entrar(String usuario, String senha) {
-        executar(() -> cliente.login(usuario, senha), Collections::singletonList, r -> {
-            if (r.sucesso()) {
-                loginEfetuado(usuario);
-                mostrar("operacoes");
-            } else {
-                painelLogin.mostrarErro(r.texto());
-            }
-            atualizarCabecalho(VERDE);
-        });
+        executar(() -> cliente.login(usuario, senha), Collections::singletonList, r -> concluirLogin(usuario, r));
+    }
+
+    /** Resultado do login: só com {@code 000} grava o último login (como foi enviado) e mostra as operações. */
+    void concluirLogin(String usuario, Resposta r) {
+        if (r.sucesso()) {
+            loginEfetuado(usuario);
+            mostrar("operacoes");
+        } else {
+            painelLogin.mostrarErro(r.texto());
+        }
+        atualizarCabecalho(VERDE);
     }
 
     /** Painel mostrado depois do login. */
