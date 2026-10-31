@@ -4,9 +4,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.nio.file.Path;
+import java.util.Optional;
+
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import br.com.ccbank.cliente.LadoCliente;
+import br.com.ccbank.cliente.UltimoLogin;
 
 class PainelLadoTest {
 
@@ -18,6 +23,36 @@ class PainelLadoTest {
         assertTrue(p.checkInterceptador().isEnabled());
         assertFalse(p.checkInterceptador().isSelected());
         assertEquals("127.0.0.1:9001", p.cliente().endereco());
+    }
+
+    @Test
+    void preencheUsuarioComUltimoLogin(@TempDir Path dir) throws Exception {
+        UltimoLogin ul = new UltimoLogin(dir.resolve("esq.dat"));
+        ul.salvar("ana.lima");
+        assertEquals("ana.lima", new PainelLado(LadoCliente.ESQUERDO, ul).usuarioLogin());
+    }
+
+    @Test
+    void semArquivoCampoVazio(@TempDir Path dir) {
+        assertEquals("", new PainelLado(LadoCliente.ESQUERDO, new UltimoLogin(dir.resolve("nada.dat"))).usuarioLogin());
+    }
+
+    @Test
+    void loginEfetuadoGrava(@TempDir Path dir) {
+        UltimoLogin ul = new UltimoLogin(dir.resolve("esq.dat"));
+        new PainelLado(LadoCliente.ESQUERDO, ul).loginEfetuado("carla.dias");
+        assertEquals(Optional.of("carla.dias"), ul.ler());
+    }
+
+    @Test
+    void ladosNaoSeMisturam(@TempDir Path dir) throws Exception {
+        UltimoLogin esq = new UltimoLogin(dir.resolve("esq.dat"));
+        UltimoLogin dir2 = new UltimoLogin(dir.resolve("dir.dat"));
+        dir2.salvar("hugo.pires");
+        new PainelLado(LadoCliente.ESQUERDO, esq).loginEfetuado("rodrigop");
+        assertEquals(Optional.of("hugo.pires"), dir2.ler());
+        assertEquals("hugo.pires", new PainelLado(LadoCliente.DIREITO, dir2).usuarioLogin());
+        assertEquals("rodrigop", new PainelLado(LadoCliente.ESQUERDO, esq).usuarioLogin());
     }
 
     @Test

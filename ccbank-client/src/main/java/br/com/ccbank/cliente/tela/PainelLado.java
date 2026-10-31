@@ -19,10 +19,13 @@ import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 
+import org.slf4j.LoggerFactory;
+
 import br.com.ccbank.cliente.ClienteBanco;
 import br.com.ccbank.cliente.FalhaAposValidacaoException;
 import br.com.ccbank.cliente.LadoCliente;
 import br.com.ccbank.cliente.Resposta;
+import br.com.ccbank.cliente.UltimoLogin;
 
 /**
  * Uma metade do cliente: cabeçalho (conexão, interceptador, operador), login/operações e o
@@ -45,11 +48,18 @@ public final class PainelLado extends JPanel {
     private final JPanel centro = new JPanel(cartoes);
     private final PainelLogin painelLogin;
     private final PainelMensagens mensagens;
+    private final UltimoLogin ultimoLogin;
     private String cartaoAtual = "login";
 
     public PainelLado(LadoCliente lado) {
+        this(lado, UltimoLogin.doLado(lado));
+    }
+
+    /** @param ultimoLogin arquivo de onde o campo de usuário é preenchido e onde o login bem-sucedido é gravado */
+    public PainelLado(LadoCliente lado, UltimoLogin ultimoLogin) {
         super(new BorderLayout(0, 6));
         this.lado = lado;
+        this.ultimoLogin = ultimoLogin;
         this.cliente = new ClienteBanco(lado, false);
         this.painelLogin = new PainelLogin(this);
         this.mensagens = new PainelMensagens(lado);
@@ -64,7 +74,23 @@ public final class PainelLado extends JPanel {
         add(mensagens, BorderLayout.SOUTH);
 
         checkInterceptador.addActionListener(e -> trocarRota());
+        ultimoLogin.ler().ifPresent(painelLogin::preencherUsuario);
         atualizarCabecalho(CINZA);
+    }
+
+    /** Texto atual do campo de usuário do login. */
+    public String usuarioLogin() {
+        return painelLogin.usuarioDigitado();
+    }
+
+    /** Grava o login aceito pelo servidor como último login deste lado; falha de gravação só vai para o log. */
+    void loginEfetuado(String login) {
+        try {
+            ultimoLogin.salvar(login);
+        } catch (IOException e) {
+            LoggerFactory.getLogger("ccbank.cliente." + lado.sufixoLog())
+                    .warn("Não foi possível gravar o último login em {}: {}", ultimoLogin.arquivo(), e.getMessage());
+        }
     }
 
     public boolean logado() {
@@ -134,6 +160,7 @@ public final class PainelLado extends JPanel {
     void entrar(String usuario, String senha) {
         executar(() -> cliente.login(usuario, senha), Collections::singletonList, r -> {
             if (r.sucesso()) {
+                loginEfetuado(usuario);
                 mostrar("operacoes");
             } else {
                 painelLogin.mostrarErro(r.texto());

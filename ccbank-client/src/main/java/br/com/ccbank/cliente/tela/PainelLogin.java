@@ -61,6 +61,14 @@ final class PainelLogin extends JPanel {
         usuario.addActionListener(e -> senha.requestFocusInWindow());
     }
 
+    void preencherUsuario(String login) {
+        usuario.setText(login);
+    }
+
+    String usuarioDigitado() {
+        return usuario.getText();
+    }
+
     void mostrarErro(String texto) {
         erro.setText(texto);
     }
