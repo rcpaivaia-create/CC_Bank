@@ -1,12 +1,12 @@
 <configuration>
-    <!-- ccbank.env é definido pelo ServidorMain (v1 ou v2) -->
-    <property name="AMBIENTE" value="${ccbank.env:-v1}"/>
+    <!-- ccbank.env é definido pelo ServidorMain (v1 ou v2); ccbank.log pela ferramenta de relatórios (admin) -->
+    <property name="ARQUIVO_LOG" value="${ccbank.log:-server-${ccbank.env:-v1}}"/>
     <property name="PADRAO" value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %msg%n"/>
 
     <appender name="ARQUIVO" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>logs/server-${AMBIENTE}.log</file>
+        <file>logs/${ARQUIVO_LOG}.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>logs/server-${AMBIENTE}.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <fileNamePattern>logs/${ARQUIVO_LOG}.%d{yyyy-MM-dd}.log</fileNamePattern>
             <maxHistory>30</maxHistory>
         </rollingPolicy>
         <encoder>
