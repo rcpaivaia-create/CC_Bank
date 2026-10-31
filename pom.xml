@@ -13,6 +13,7 @@
     <modules>
         <module>ccbank-protocol</module>
         <module>ccbank-server</module>
+        <module>ccbank-client</module>
         <module>ccbank-tests</module>
     </modules>
 
@@ -40,6 +41,11 @@
             <dependency>
                 <groupId>br.com.ccbank</groupId>
                 <artifactId>ccbank-server</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>br.com.ccbank</groupId>
+                <artifactId>ccbank-client</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
