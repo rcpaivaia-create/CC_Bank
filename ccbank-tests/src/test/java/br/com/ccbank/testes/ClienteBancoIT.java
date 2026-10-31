@@ -25,6 +25,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 
 import br.com.ccbank.cliente.ClienteBanco;
 import br.com.ccbank.cliente.ConexaoServidor;
+import br.com.ccbank.cliente.FalhaAposValidacaoException;
 import br.com.ccbank.cliente.LadoCliente;
 import br.com.ccbank.cliente.LinhaExtrato;
 import br.com.ccbank.cliente.Resposta;
@@ -209,10 +210,14 @@ class ClienteBancoIT {
     void quedaEntreAsEtapas(Ambiente amb) throws Exception {
         iniciar(amb);
         logar();
-        assertThrows(IOException.class, () -> cliente.executarComValidacao("0001", "100001", "123456", () -> {
-            servidor.parar();
-            return cliente.saque("0001", "100001", "10,00");
-        }));
+        FalhaAposValidacaoException e = assertThrows(FalhaAposValidacaoException.class,
+                () -> cliente.executarComValidacao("0001", "100001", "123456", () -> {
+                    servidor.parar();
+                    return cliente.saque("0001", "100001", "10,00");
+                }));
+        // a validação já efetivada continua disponível para a tela mostrar
+        assertTrue(e.validacao().sucesso());
+        assertEquals(1, BancoTeste.contar(ds, "select count(*) from transacao where tipo='VALIDAR_SENHA' and codigo_retorno='000'"));
         assertEquals(0, BancoTeste.contar(ds, "select count(*) from transacao where tipo='SAQUE'"));
     }
 

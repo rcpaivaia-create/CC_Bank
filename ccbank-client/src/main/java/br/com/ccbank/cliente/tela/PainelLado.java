@@ -20,6 +20,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 
 import br.com.ccbank.cliente.ClienteBanco;
+import br.com.ccbank.cliente.FalhaAposValidacaoException;
 import br.com.ccbank.cliente.LadoCliente;
 import br.com.ccbank.cliente.Resposta;
 
@@ -108,6 +109,10 @@ public final class PainelLado extends JPanel {
                     String motivo = falha instanceof IOException || falha instanceof IllegalStateException
                             ? falha.getMessage()
                             : "Erro inesperado: " + falha;
+                    if (falha instanceof FalhaAposValidacaoException) {
+                        // a validação já foi efetivada no servidor: mostra antes da falha da operação
+                        mensagens.registrar(cliente.endereco(), ((FalhaAposValidacaoException) falha).validacao());
+                    }
                     mensagens.registrarFalha(cliente.endereco(), motivo);
                     erro.setText(motivo);
                     atualizarCabecalho(VERMELHO);

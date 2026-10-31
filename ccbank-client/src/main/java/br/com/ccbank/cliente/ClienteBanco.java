@@ -96,7 +96,8 @@ public final class ClienteBanco {
 
     /**
      * Valida a senha e, só se a validação devolver {@code 000}, executa a operação.
-     * Falha de comunicação em qualquer etapa é repassada como {@link IOException}.
+     * Falha de comunicação na validação é repassada como {@link IOException}; na operação, como
+     * {@link FalhaAposValidacaoException}, que carrega a validação já efetivada.
      */
     public ResultadoValidado executarComValidacao(String coop, String conta, String senha, OperacaoCliente operacao)
             throws IOException {
@@ -104,7 +105,11 @@ public final class ClienteBanco {
         if (!validacao.sucesso()) {
             return new ResultadoValidado(validacao, null);
         }
-        return new ResultadoValidado(validacao, operacao.executar());
+        try {
+            return new ResultadoValidado(validacao, operacao.executar());
+        } catch (IOException e) {
+            throw new FalhaAposValidacaoException(validacao, e);
+        }
     }
 
     public Resposta saldo(String coop, String conta) throws IOException {
