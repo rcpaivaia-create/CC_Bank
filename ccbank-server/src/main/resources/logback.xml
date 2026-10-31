@@ -1,0 +1,33 @@
+<configuration>
+    <!-- ccbank.env é definido pelo ServidorMain (v1 ou v2) -->
+    <property name="AMBIENTE" value="${ccbank.env:-v1}"/>
+    <property name="PADRAO" value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %msg%n"/>
+
+    <appender name="ARQUIVO" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/server-${AMBIENTE}.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/server-${AMBIENTE}.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <charset>UTF-8</charset>
+            <pattern>${PADRAO}</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <charset>UTF-8</charset>
+            <pattern>${PADRAO}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Mensagens trocadas, com nomes legíveis. Em benchmark, ajustar este nível igualmente nos dois lados. -->
+    <logger name="ccbank.mensagens" level="INFO"/>
+    <logger name="com.zaxxer.hikari" level="WARN"/>
+
+    <root level="INFO">
+        <appender-ref ref="ARQUIVO"/>
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>

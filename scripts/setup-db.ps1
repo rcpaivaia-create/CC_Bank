@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Cria os bancos do CC_Bank (ccbank_v1, ccbank_v2 e os de teste) e aplica os scripts de db/.
 
