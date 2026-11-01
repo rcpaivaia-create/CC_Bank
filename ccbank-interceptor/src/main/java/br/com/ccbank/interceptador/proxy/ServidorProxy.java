@@ -14,6 +14,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import br.com.ccbank.interceptador.config.LadoInterceptador;
+import br.com.ccbank.interceptador.mediacao.Mediador;
+import br.com.ccbank.interceptador.mediacao.MediadorRegras;
+import br.com.ccbank.interceptador.mediacao.OuvinteTroca;
 import br.com.ccbank.interceptador.regras.MotorRegras;
 
 /**
@@ -27,24 +30,37 @@ public final class ServidorProxy {
     private final int portaEscuta;
     private final String hostDestino;
     private final int portaDestino;
-    private final MotorRegras motor;
+    private final Mediador mediador;
+    private final OuvinteTroca ouvinte;
     private final String sufixoLog;
     private final Set<Socket> abertas = ConcurrentHashMap.newKeySet();
     private final AtomicInteger contador = new AtomicInteger();
     private final ExecutorService pares;
     private volatile ServerSocket serverSocket;
 
-    public ServidorProxy(int portaEscuta, String hostDestino, int portaDestino, MotorRegras motor, String sufixoLog) {
+    public ServidorProxy(int portaEscuta, String hostDestino, int portaDestino, Mediador mediador,
+            OuvinteTroca ouvinte, String sufixoLog) {
         this.portaEscuta = portaEscuta;
         this.hostDestino = hostDestino;
         this.portaDestino = portaDestino;
-        this.motor = motor;
+        this.mediador = mediador;
+        this.ouvinte = ouvinte;
         this.sufixoLog = sufixoLog;
         this.pares = Executors.newCachedThreadPool(r -> {
             Thread t = new Thread(r, "par-" + sufixoLog + "-" + contador.incrementAndGet());
             t.setDaemon(true);
             return t;
         });
+    }
+
+    /** Conveniência que preserva o headless da 2a: motor de regras e sem observação. */
+    public ServidorProxy(int portaEscuta, String hostDestino, int portaDestino, MotorRegras motor, String sufixoLog) {
+        this(portaEscuta, hostDestino, portaDestino, new MediadorRegras(motor), OuvinteTroca.NULO, sufixoLog);
+    }
+
+    public static ServidorProxy doLado(LadoInterceptador lado, Mediador mediador, OuvinteTroca ouvinte) {
+        return new ServidorProxy(lado.portaEscuta(), lado.hostDestino(), lado.portaDestino(), mediador, ouvinte,
+                lado.sufixoLog());
     }
 
     public static ServidorProxy doLado(LadoInterceptador lado, MotorRegras motor) {
@@ -88,8 +104,8 @@ public final class ServidorProxy {
             try {
                 Socket cliente = serverSocket.accept();
                 abertas.add(cliente);
-                pares.execute(() ->
-                        new ParDeConexoes(cliente, hostDestino, portaDestino, motor, sufixoLog, abertas).executar());
+                pares.execute(() -> new ParDeConexoes(cliente, hostDestino, portaDestino, mediador, ouvinte,
+                        sufixoLog, abertas).executar());
             } catch (SocketException e) {
                 // porta fechada por parar()
             } catch (IOException e) {
