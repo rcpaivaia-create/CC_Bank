@@ -2,7 +2,13 @@ package br.com.ccbank.testes;
 
 import br.com.ccbank.protocolo.SenhaHash;
 
-/** #13: o MD5 sem salt de uma senha de 6 dígitos é quebrado por força bruta. */
+/**
+ * #13: o MD5 sem salt de uma senha de 6 dígitos é quebrado por força bruta.
+ *
+ * <p>Ataque offline: ignora o lado (usa {@code SenhaHash.md5} direto). Para flipar para
+ * PROTEGIDO na fase 3, precisará atacar a credencial realmente produzida pelo lado sob teste
+ * (ex.: hash salgado do banco v2), não a função de hash compartilhada.
+ */
 final class QuebraHash implements Ataque {
 
     @Override
