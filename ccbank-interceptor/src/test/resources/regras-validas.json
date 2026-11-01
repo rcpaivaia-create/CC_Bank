@@ -1,0 +1,15 @@
+[
+  {
+    "nome": "saque-centavos",
+    "ativa": true,
+    "direcao": "REQUISICAO",
+    "quando": { "00001": "saque" },
+    "acoes": [ { "tipo": "SET", "rotulo": "00030", "valor": "0.01" } ]
+  },
+  {
+    "nome": "sempre-ativa-por-omissao",
+    "direcao": "RESPOSTA",
+    "quando": { "00090": "003" },
+    "acoes": [ { "tipo": "SET", "rotulo": "00090", "valor": "000" } ]
+  }
+]
