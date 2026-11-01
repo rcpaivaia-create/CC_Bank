@@ -90,6 +90,9 @@ public final class CarregadorRegras {
             Acao.Tipo tipo = lerTipo(texto(no, "tipo"));
             String rotulo = texto(no, "rotulo");
             String valor = no.has("valor") ? no.get("valor").asText() : null;
+            if (valor == null && tipo != Acao.Tipo.REMOVE) {
+                throw new RegrasInvalidasException("ação " + tipo + " em " + rotulo + " exige 'valor'");
+            }
             lista.add(new Acao(tipo, rotulo, valor));
         }
         return lista;

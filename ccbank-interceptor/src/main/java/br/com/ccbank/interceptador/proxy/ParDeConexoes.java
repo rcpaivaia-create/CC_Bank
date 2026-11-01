@@ -7,6 +7,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,13 +37,16 @@ final class ParDeConexoes {
     private final int portaDestino;
     private final MotorRegras motor;
     private final String sufixoLog;
+    private final Set<Socket> registro;
 
-    ParDeConexoes(Socket cliente, String hostDestino, int portaDestino, MotorRegras motor, String sufixoLog) {
+    ParDeConexoes(Socket cliente, String hostDestino, int portaDestino, MotorRegras motor, String sufixoLog,
+            Set<Socket> registro) {
         this.cliente = cliente;
         this.hostDestino = hostDestino;
         this.portaDestino = portaDestino;
         this.motor = motor;
         this.sufixoLog = sufixoLog;
+        this.registro = registro;
     }
 
     void executar() {
@@ -69,6 +73,7 @@ final class ParDeConexoes {
         } catch (IOException e) {
             LOG.warn("[{}] par {} encerrado: {}", sufixoLog, enderecoCliente, e.getMessage());
         } finally {
+            registro.remove(cliente);
             fechar(cliente);
         }
     }

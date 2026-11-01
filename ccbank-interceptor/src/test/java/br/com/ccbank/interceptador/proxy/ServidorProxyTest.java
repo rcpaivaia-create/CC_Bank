@@ -176,6 +176,24 @@ class ServidorProxyTest {
     }
 
     @Test
+    void conexaoEncerradaSaiDoConjunto() throws Exception {
+        byte[] req = quadro(new Mensagem().adicionar("00001", "login"));
+        byte[] resp = quadro(new Mensagem().adicionar("00090", "000"));
+        try (ServidorFalso eco = new ServidorFalso(resp)) {
+            Socket cliente = abrirProxy(eco, semRegras());
+            cliente.getOutputStream().write(req);
+            cliente.getOutputStream().flush();
+            CodecMensagem.lerQuadro(cliente.getInputStream());
+            cliente.close();
+            long fim = System.currentTimeMillis() + 3000;
+            while (proxy.conexoesAtivas() > 0 && System.currentTimeMillis() < fim) {
+                Thread.sleep(20);
+            }
+            assertEquals(0, proxy.conexoesAtivas());
+        }
+    }
+
+    @Test
     void quadroAcimaDe64kDerrubaOPar() throws Exception {
         byte[] gigante = new byte[70000];
         java.util.Arrays.fill(gigante, (byte) 'x');

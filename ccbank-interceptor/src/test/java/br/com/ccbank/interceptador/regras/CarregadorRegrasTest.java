@@ -52,6 +52,13 @@ class CarregadorRegrasTest {
     }
 
     @Test
+    void setSemValorLancaRegrasInvalidas() {
+        String texto = "[{\"nome\":\"x\",\"direcao\":\"REQUISICAO\",\"quando\":{\"00001\":\"saque\"},"
+                + "\"acoes\":[{\"tipo\":\"SET\",\"rotulo\":\"00030\"}]}]";
+        assertThrows(RegrasInvalidasException.class, () -> CarregadorRegras.carregar(json(texto)));
+    }
+
+    @Test
     void regexInvalidaNoQuandoLancaRegrasInvalidas() {
         String texto = "[{\"nome\":\"x\",\"direcao\":\"REQUISICAO\",\"quando\":{\"00030\":\"~(\"},"
                 + "\"acoes\":[{\"tipo\":\"SET\",\"rotulo\":\"00030\",\"valor\":\"0\"}]}]";

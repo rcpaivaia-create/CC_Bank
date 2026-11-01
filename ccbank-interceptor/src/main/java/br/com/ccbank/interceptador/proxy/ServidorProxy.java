@@ -62,6 +62,11 @@ public final class ServidorProxy {
         return serverSocket.getLocalPort();
     }
 
+    /** Número de conexões de cliente ainda abertas (visível para teste). */
+    int conexoesAtivas() {
+        return abertas.size();
+    }
+
     public void parar() {
         try {
             serverSocket.close();
@@ -83,7 +88,8 @@ public final class ServidorProxy {
             try {
                 Socket cliente = serverSocket.accept();
                 abertas.add(cliente);
-                pares.execute(() -> new ParDeConexoes(cliente, hostDestino, portaDestino, motor, sufixoLog).executar());
+                pares.execute(() ->
+                        new ParDeConexoes(cliente, hostDestino, portaDestino, motor, sufixoLog, abertas).executar());
             } catch (SocketException e) {
                 // porta fechada por parar()
             } catch (IOException e) {
