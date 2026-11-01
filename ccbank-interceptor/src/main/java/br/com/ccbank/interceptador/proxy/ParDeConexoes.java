@@ -31,7 +31,6 @@ import br.com.ccbank.interceptador.regras.Sentido;
  */
 final class ParDeConexoes {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ParDeConexoes.class);
     private static final int TIMEOUT_CONEXAO_MS = 5_000;
 
     private final Socket cliente;
@@ -41,6 +40,7 @@ final class ParDeConexoes {
     private final OuvinteTroca ouvinte;
     private final String sufixoLog;
     private final Set<Socket> registro;
+    private final Logger log;
 
     ParDeConexoes(Socket cliente, String hostDestino, int portaDestino, Mediador mediador, OuvinteTroca ouvinte,
             String sufixoLog, Set<Socket> registro) {
@@ -51,6 +51,7 @@ final class ParDeConexoes {
         this.ouvinte = ouvinte;
         this.sufixoLog = sufixoLog;
         this.registro = registro;
+        this.log = LoggerFactory.getLogger("ccbank.interceptador." + sufixoLog);
     }
 
     void executar() {
@@ -78,7 +79,7 @@ final class ParDeConexoes {
                 }
             }
         } catch (IOException e) {
-            LOG.warn("[{}] par {} encerrado: {}", sufixoLog, enderecoCliente, e.getMessage());
+            log.warn("[{}] par {} encerrado: {}", sufixoLog, enderecoCliente, e.getMessage());
         } finally {
             registro.remove(cliente);
             fechar(cliente);
@@ -90,7 +91,7 @@ final class ParDeConexoes {
         try {
             return CodecMensagem.lerQuadro(in);
         } catch (MensagemMuitoGrandeException e) {
-            LOG.warn("[{}] quadro de {} acima de 64 KB; par derrubado", sufixoLog, origem);
+            log.warn("[{}] quadro de {} acima de 64 KB; par derrubado", sufixoLog, origem);
             return null;
         }
     }
@@ -106,19 +107,19 @@ final class ParDeConexoes {
         try {
             mensagem = CodecMensagem.decodificar(quadro);
         } catch (MensagemMalformadaException e) {
-            LOG.info("[{}] {} (opaco, {} bytes): {}", sufixoLog, etapaEntrada, quadro.length, hex(quadro));
+            log.info("[{}] {} (opaco, {} bytes): {}", sufixoLog, etapaEntrada, quadro.length, hex(quadro));
             destino.write(quadro);
             destino.flush();
             return true;
         }
-        LOG.info("[{}] {}\n{}", sufixoLog, etapaEntrada, FormatadorLog.formatarCampos(mensagem));
+        log.info("[{}] {}\n{}", sufixoLog, etapaEntrada, FormatadorLog.formatarCampos(mensagem));
         DecisaoMediacao decisao = mediador.intervir(mensagem, sentido);
         ouvinte.observar(sentido, mensagem, decisao);
         if (decisao.acao() == DecisaoMediacao.Acao.DESCARTAR) {
-            LOG.info("[{}] {} DESCARTADA", sufixoLog, etapaSaida);
+            log.info("[{}] {} DESCARTADA", sufixoLog, etapaSaida);
             return false;
         }
-        LOG.info("[{}] {}\n{}", sufixoLog, etapaSaida,
+        log.info("[{}] {}\n{}", sufixoLog, etapaSaida,
                 FormatadorAdulteracao.formatar(decisao.resultado().mensagem(), decisao.resultado().adulteracoes()));
         byte[] saida = decisao.reserializar() ? CodecMensagem.codificar(decisao.resultado().mensagem()) : quadro;
         destino.write(saida);
@@ -138,7 +139,7 @@ final class ParDeConexoes {
         try {
             s.close();
         } catch (IOException e) {
-            LOG.debug("[{}] erro ao fechar socket do cliente", sufixoLog, e);
+            log.debug("[{}] erro ao fechar socket do cliente", sufixoLog, e);
         }
     }
 }

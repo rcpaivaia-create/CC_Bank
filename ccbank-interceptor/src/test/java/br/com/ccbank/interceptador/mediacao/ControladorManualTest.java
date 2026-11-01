@@ -59,6 +59,15 @@ class ControladorManualTest {
     }
 
     @Test
+    void resolverSemRetencaoNaoBloqueiaOChamador() throws Exception {
+        ControladorManual c = new ControladorManual(ControladorManual.Filtro.AMBAS);
+        // Nada retido: encaminhar (chamado da EDT na tela) não pode bloquear.
+        CompletableFuture<Void> f = CompletableFuture.runAsync(
+                () -> c.encaminhar(new Mensagem().adicionar("00001", "x")));
+        f.get(1, TimeUnit.SECONDS);
+    }
+
+    @Test
     void descartarDevolveDescarte() throws Exception {
         ControladorManual c = new ControladorManual(ControladorManual.Filtro.AMBAS);
         CompletableFuture<DecisaoMediacao> f = CompletableFuture.supplyAsync(

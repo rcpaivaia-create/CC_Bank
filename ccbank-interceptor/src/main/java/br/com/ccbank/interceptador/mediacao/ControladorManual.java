@@ -84,11 +84,9 @@ public final class ControladorManual implements Mediador {
     }
 
     private void resolver(DecisaoMediacao decisao) {
-        try {
-            resolucao.put(decisao);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        // offer() não bloqueia: entrega só se a thread do par já estiver esperando em take()
+        // (o que ocorre sempre que há uma mensagem retida). Chamado da EDT, nunca pode travar.
+        resolucao.offer(decisao);
     }
 
     private boolean retemSentido(Sentido sentido) {

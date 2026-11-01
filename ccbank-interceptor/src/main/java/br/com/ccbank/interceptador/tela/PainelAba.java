@@ -58,7 +58,7 @@ public final class PainelAba extends JPanel {
     public PainelAba(LadoInterceptador lado) {
         super(new BorderLayout(4, 4));
         this.lado = lado;
-        this.log = LoggerFactory.getLogger("ccbank.interceptador.tela." + lado.sufixoLog());
+        this.log = LoggerFactory.getLogger("ccbank.interceptador." + lado.sufixoLog());
         controladorManual.aoMudarRetencao(() -> SwingUtilities.invokeLater(this::atualizarManual));
         add(barraSuperior(), BorderLayout.NORTH);
         add(corpo(), BorderLayout.CENTER);
@@ -111,7 +111,8 @@ public final class PainelAba extends JPanel {
 
     private JComponent painelManual() {
         JPanel painel = new JPanel(new BorderLayout(4, 4));
-        painel.add(new JScrollPane(new JTable(modeloCampos)), BorderLayout.CENTER);
+        JTable tabela = new JTable(modeloCampos);
+        painel.add(new JScrollPane(tabela), BorderLayout.CENTER);
 
         JPanel acoes = new JPanel(new FlowLayout(FlowLayout.LEFT));
         JComboBox<ControladorManual.Filtro> filtro = new JComboBox<>(ControladorManual.Filtro.values());
@@ -119,12 +120,20 @@ public final class PainelAba extends JPanel {
         filtro.addActionListener(e -> controladorManual.filtro((ControladorManual.Filtro) filtro.getSelectedItem()));
         JButton adicionar = new JButton("+ linha");
         adicionar.addActionListener(e -> modeloCampos.adicionarLinha());
+        JButton remover = new JButton("- linha");
+        remover.addActionListener(e -> {
+            int linha = tabela.getSelectedRow();
+            if (linha >= 0) {
+                modeloCampos.removerLinha(linha);
+            }
+        });
         encaminhar.addActionListener(e -> controladorManual.encaminhar(modeloCampos.montarMensagem()));
         encaminharOriginal.addActionListener(e -> controladorManual.encaminharOriginal());
         descartar.addActionListener(e -> controladorManual.descartar());
         acoes.add(new JLabel("Reter:"));
         acoes.add(filtro);
         acoes.add(adicionar);
+        acoes.add(remover);
         acoes.add(encaminhar);
         acoes.add(encaminharOriginal);
         acoes.add(descartar);
