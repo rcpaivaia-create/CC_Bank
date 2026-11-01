@@ -231,14 +231,6 @@ class ClienteBancoIT {
         assertEquals("Servidor não disponível em 127.0.0.1:" + porta, e.getMessage());
     }
 
-    @Test
-    void portaDeInterceptadorDaMensagemDeInterceptador() {
-        ConexaoServidor c = new ConexaoServidor(LadoCliente.ESQUERDO, "127.0.0.1", 8001);
-        ServicoIndisponivelException e = assertThrows(ServicoIndisponivelException.class,
-                () -> new ClienteBanco(LadoCliente.ESQUERDO, c).login("rodrigop", "senha123"));
-        assertEquals("Interceptador não disponível em 127.0.0.1:8001", e.getMessage());
-    }
-
     @ParameterizedTest
     @EnumSource(Ambiente.class)
     void reconectaAposServidorReiniciar(Ambiente amb) throws Exception {

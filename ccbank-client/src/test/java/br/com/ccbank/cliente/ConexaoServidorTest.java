@@ -1,5 +1,6 @@
 package br.com.ccbank.cliente;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -46,5 +47,17 @@ class ConexaoServidorTest {
             assertTrue(envio.get(5, TimeUnit.SECONDS) instanceof IOException);
             lado.close();
         }
+    }
+
+    @Test
+    void portaDeInterceptadorNomeiaInterceptador() {
+        assertEquals("Interceptador", ConexaoServidor.nomeDoServico(LadoCliente.ESQUERDO, 8001));
+        assertEquals("Interceptador", ConexaoServidor.nomeDoServico(LadoCliente.DIREITO, 8002));
+    }
+
+    @Test
+    void portaDeServidorNomeiaServidor() {
+        assertEquals("Servidor", ConexaoServidor.nomeDoServico(LadoCliente.ESQUERDO, 9001));
+        assertEquals("Servidor", ConexaoServidor.nomeDoServico(LadoCliente.DIREITO, 9002));
     }
 }
