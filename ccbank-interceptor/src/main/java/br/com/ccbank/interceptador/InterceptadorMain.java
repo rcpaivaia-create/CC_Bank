@@ -59,9 +59,8 @@ public final class InterceptadorMain {
             }
             LadoInterceptador lado = LadoInterceptador.porNome(ladoArg);
 
-            // Antes do primeiro uso do SLF4J: o logback.xml usa ccbank.lado no nome do arquivo de log.
-            System.setProperty("ccbank.lado", lado.sufixoLog());
-            Logger log = LoggerFactory.getLogger(InterceptadorMain.class);
+            // Loga pelo logger do lado, roteado ao arquivo interceptor-<lado>.log pelo logback.
+            Logger log = LoggerFactory.getLogger("ccbank.interceptador." + lado.sufixoLog());
 
             List<Regra> regras = regrasArg == null
                     ? Collections.<Regra>emptyList()

@@ -12,41 +12,46 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import br.com.ccbank.interceptador.regras.MotorRegras;
-import br.com.ccbank.interceptador.regras.ResultadoAplicacao;
-import br.com.ccbank.interceptador.regras.Sentido;
+import br.com.ccbank.interceptador.mediacao.DecisaoMediacao;
+import br.com.ccbank.interceptador.mediacao.Mediador;
+import br.com.ccbank.interceptador.mediacao.OuvinteTroca;
 import br.com.ccbank.protocolo.CodecMensagem;
+import br.com.ccbank.protocolo.FormatadorLog;
 import br.com.ccbank.protocolo.Mensagem;
 import br.com.ccbank.protocolo.MensagemMalformadaException;
 import br.com.ccbank.protocolo.MensagemMuitoGrandeException;
+import br.com.ccbank.interceptador.regras.Sentido;
 
 /**
  * Trata um par cliente↔servidor do proxy. O protocolo é síncrono (uma mensagem em voo), então
- * o loop lê um quadro do cliente, adultera no sentido {@link Sentido#REQUISICAO} e repassa ao
- * servidor; depois lê a resposta, adultera no sentido {@link Sentido#RESPOSTA} e devolve ao
- * cliente. Quadro que não decodifica passa em modo opaco (bytes intactos); quadro acima do
- * limite de 64 KB derruba o par.
+ * o loop lê um quadro do cliente, consulta o {@link Mediador} no sentido {@link Sentido#REQUISICAO}
+ * e repassa ao servidor; depois lê a resposta, consulta no sentido {@link Sentido#RESPOSTA} e
+ * devolve ao cliente. Quadro que não decodifica passa em modo opaco (bytes intactos, sem mediar);
+ * quadro acima de 64 KB derruba o par. Uma mensagem descartada não é escrita.
  */
 final class ParDeConexoes {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ParDeConexoes.class);
     private static final int TIMEOUT_CONEXAO_MS = 5_000;
 
     private final Socket cliente;
     private final String hostDestino;
     private final int portaDestino;
-    private final MotorRegras motor;
+    private final Mediador mediador;
+    private final OuvinteTroca ouvinte;
     private final String sufixoLog;
     private final Set<Socket> registro;
+    private final Logger log;
 
-    ParDeConexoes(Socket cliente, String hostDestino, int portaDestino, MotorRegras motor, String sufixoLog,
-            Set<Socket> registro) {
+    ParDeConexoes(Socket cliente, String hostDestino, int portaDestino, Mediador mediador, OuvinteTroca ouvinte,
+            String sufixoLog, Set<Socket> registro) {
         this.cliente = cliente;
         this.hostDestino = hostDestino;
         this.portaDestino = portaDestino;
-        this.motor = motor;
+        this.mediador = mediador;
+        this.ouvinte = ouvinte;
         this.sufixoLog = sufixoLog;
         this.registro = registro;
+        this.log = LoggerFactory.getLogger("ccbank.interceptador." + sufixoLog);
     }
 
     void executar() {
@@ -62,7 +67,10 @@ final class ParDeConexoes {
                     if (requisicao == null) {
                         break;
                     }
-                    repassar(requisicao, Sentido.REQUISICAO, outServidor, "recebida do cliente", "enviada ao servidor");
+                    if (!repassar(requisicao, Sentido.REQUISICAO, outServidor, "recebida do cliente",
+                            "enviada ao servidor")) {
+                        continue; // requisição descartada: não há round-trip ao servidor
+                    }
                     byte[] resposta = lerQuadro(inServidor, hostDestino + ":" + portaDestino);
                     if (resposta == null) {
                         break;
@@ -71,7 +79,7 @@ final class ParDeConexoes {
                 }
             }
         } catch (IOException e) {
-            LOG.warn("[{}] par {} encerrado: {}", sufixoLog, enderecoCliente, e.getMessage());
+            log.warn("[{}] par {} encerrado: {}", sufixoLog, enderecoCliente, e.getMessage());
         } finally {
             registro.remove(cliente);
             fechar(cliente);
@@ -83,29 +91,40 @@ final class ParDeConexoes {
         try {
             return CodecMensagem.lerQuadro(in);
         } catch (MensagemMuitoGrandeException e) {
-            LOG.warn("[{}] quadro de {} acima de 64 KB; par derrubado", sufixoLog, origem);
+            log.warn("[{}] quadro de {} acima de 64 KB; par derrubado", sufixoLog, origem);
             return null;
         }
     }
 
-    private void repassar(byte[] quadro, Sentido sentido, OutputStream destino, String etapaEntrada, String etapaSaida)
-            throws IOException {
+    /**
+     * Repassa um quadro à {@code destino} conforme o mediador.
+     *
+     * @return {@code true} se encaminhou (ou passou opaco); {@code false} se descartou
+     */
+    private boolean repassar(byte[] quadro, Sentido sentido, OutputStream destino, String etapaEntrada,
+            String etapaSaida) throws IOException {
         Mensagem mensagem;
         try {
             mensagem = CodecMensagem.decodificar(quadro);
         } catch (MensagemMalformadaException e) {
-            LOG.info("[{}] {} (opaco, {} bytes): {}", sufixoLog, etapaEntrada, quadro.length, hex(quadro));
+            log.info("[{}] {} (opaco, {} bytes): {}", sufixoLog, etapaEntrada, quadro.length, hex(quadro));
             destino.write(quadro);
             destino.flush();
-            return;
+            return true;
         }
-        LOG.info("[{}] {}\n{}", sufixoLog, etapaEntrada, br.com.ccbank.protocolo.FormatadorLog.formatarCampos(mensagem));
-        ResultadoAplicacao resultado = motor.aplicar(mensagem, sentido);
-        LOG.info("[{}] {}\n{}", sufixoLog, etapaSaida,
-                FormatadorAdulteracao.formatar(resultado.mensagem(), resultado.adulteracoes()));
-        byte[] saida = resultado.houveAdulteracao() ? CodecMensagem.codificar(resultado.mensagem()) : quadro;
+        log.info("[{}] {}\n{}", sufixoLog, etapaEntrada, FormatadorLog.formatarCampos(mensagem));
+        DecisaoMediacao decisao = mediador.intervir(mensagem, sentido);
+        ouvinte.observar(sentido, mensagem, decisao);
+        if (decisao.acao() == DecisaoMediacao.Acao.DESCARTAR) {
+            log.info("[{}] {} DESCARTADA", sufixoLog, etapaSaida);
+            return false;
+        }
+        log.info("[{}] {}\n{}", sufixoLog, etapaSaida,
+                FormatadorAdulteracao.formatar(decisao.resultado().mensagem(), decisao.resultado().adulteracoes()));
+        byte[] saida = decisao.reserializar() ? CodecMensagem.codificar(decisao.resultado().mensagem()) : quadro;
         destino.write(saida);
         destino.flush();
+        return true;
     }
 
     private static String hex(byte[] bytes) {
@@ -120,7 +139,7 @@ final class ParDeConexoes {
         try {
             s.close();
         } catch (IOException e) {
-            LOG.debug("[{}] erro ao fechar socket do cliente", sufixoLog, e);
+            log.debug("[{}] erro ao fechar socket do cliente", sufixoLog, e);
         }
     }
 }

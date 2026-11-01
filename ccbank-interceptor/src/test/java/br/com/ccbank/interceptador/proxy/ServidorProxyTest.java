@@ -217,4 +217,100 @@ class ServidorProxyTest {
             }
         }
     }
+
+    private Socket abrirProxy(ServidorFalso eco, br.com.ccbank.interceptador.mediacao.Mediador mediador,
+            br.com.ccbank.interceptador.mediacao.OuvinteTroca ouvinte) throws IOException {
+        proxy = new ServidorProxy(0, "127.0.0.1", eco.porta(), mediador, ouvinte, "teste");
+        proxy.iniciar();
+        Socket cliente = new Socket("127.0.0.1", proxy.portaLocal());
+        cliente.setSoTimeout(5000);
+        return cliente;
+    }
+
+    @Test
+    void descartarRequisicaoNaoChegaAoServidor() throws Exception {
+        br.com.ccbank.interceptador.mediacao.Mediador descarta =
+                (m, s) -> br.com.ccbank.interceptador.mediacao.DecisaoMediacao.descartar();
+        byte[] req = quadro(new Mensagem().adicionar("00001", "saque"));
+        try (ServidorFalso eco = new ServidorFalso(null)) {
+            try (Socket cliente = abrirProxy(eco, descarta,
+                    br.com.ccbank.interceptador.mediacao.OuvinteTroca.NULO);
+                    OutputStream out = cliente.getOutputStream()) {
+                out.write(req);
+                out.flush();
+                Thread.sleep(300);
+                assertEquals(null, eco.recebido);
+            }
+        }
+    }
+
+    @Test
+    void descartarRespostaNaoChegaAoCliente() throws Exception {
+        br.com.ccbank.interceptador.mediacao.Mediador descartaResposta = (m, s) ->
+                s == Sentido.RESPOSTA
+                        ? br.com.ccbank.interceptador.mediacao.DecisaoMediacao.descartar()
+                        : br.com.ccbank.interceptador.mediacao.DecisaoMediacao.encaminharOriginal(m);
+        byte[] req = quadro(new Mensagem().adicionar("00001", "saldo"));
+        byte[] resp = quadro(new Mensagem().adicionar("00090", "000"));
+        try (ServidorFalso eco = new ServidorFalso(resp)) {
+            try (Socket cliente = abrirProxy(eco, descartaResposta,
+                    br.com.ccbank.interceptador.mediacao.OuvinteTroca.NULO);
+                    OutputStream out = cliente.getOutputStream();
+                    InputStream in = cliente.getInputStream()) {
+                out.write(req);
+                out.flush();
+                int r;
+                try {
+                    r = in.read();
+                } catch (IOException e) {
+                    r = -1;
+                }
+                assertEquals(-1, r);
+                assertArrayEquals(req, eco.recebido);
+            }
+        }
+    }
+
+    @Test
+    void ouvinteRecebeCadaTroca() throws Exception {
+        java.util.List<Sentido> observados = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+        br.com.ccbank.interceptador.mediacao.OuvinteTroca ouvinte =
+                (sentido, original, decisao) -> observados.add(sentido);
+        byte[] req = quadro(new Mensagem().adicionar("00001", "saque"));
+        byte[] resp = quadro(new Mensagem().adicionar("00090", "000"));
+        try (ServidorFalso eco = new ServidorFalso(resp)) {
+            try (Socket cliente = abrirProxy(eco, new br.com.ccbank.interceptador.mediacao.MediadorPassagem(), ouvinte);
+                    OutputStream out = cliente.getOutputStream();
+                    InputStream in = cliente.getInputStream()) {
+                out.write(req);
+                out.flush();
+                CodecMensagem.lerQuadro(in);
+                long fim = System.currentTimeMillis() + 2000;
+                while (observados.size() < 2 && System.currentTimeMillis() < fim) {
+                    Thread.sleep(20);
+                }
+                assertEquals(java.util.Arrays.asList(Sentido.REQUISICAO, Sentido.RESPOSTA), observados);
+            }
+        }
+    }
+
+    @Test
+    void opacoNaoVaiAoMediador() throws Exception {
+        br.com.ccbank.interceptador.mediacao.Mediador explode = (m, s) -> {
+            throw new AssertionError("mediador não deve ser chamado para quadro opaco");
+        };
+        byte[] opaco = "sem-igual\n\n".getBytes(UTF_8);
+        byte[] resp = quadro(new Mensagem().adicionar("00090", "000"));
+        try (ServidorFalso eco = new ServidorFalso(resp)) {
+            try (Socket cliente = abrirProxy(eco, explode,
+                    br.com.ccbank.interceptador.mediacao.OuvinteTroca.NULO);
+                    OutputStream out = cliente.getOutputStream();
+                    InputStream in = cliente.getInputStream()) {
+                out.write(opaco);
+                out.flush();
+                CodecMensagem.lerQuadro(in);
+                assertArrayEquals(opaco, eco.recebido);
+            }
+        }
+    }
 }

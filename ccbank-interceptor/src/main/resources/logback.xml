@@ -1,12 +1,22 @@
 <configuration>
-    <!-- ccbank.lado é definido pelo InterceptadorMain (esquerdo ou direito). -->
-    <property name="ARQUIVO_LOG" value="interceptor-${ccbank.lado:-esquerdo}"/>
     <property name="PADRAO" value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %msg%n"/>
 
-    <appender name="ARQUIVO" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>logs/${ARQUIVO_LOG}.log</file>
+    <appender name="ESQUERDO" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/interceptor-esquerdo.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>logs/${ARQUIVO_LOG}.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <fileNamePattern>logs/interceptor-esquerdo.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <charset>UTF-8</charset>
+            <pattern>${PADRAO}</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="DIREITO" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/interceptor-direito.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/interceptor-direito.%d{yyyy-MM-dd}.log</fileNamePattern>
             <maxHistory>30</maxHistory>
         </rollingPolicy>
         <encoder>
@@ -22,8 +32,17 @@
         </encoder>
     </appender>
 
+    <!-- Um logger por lado; no headless cada processo usa um, na tela um processo usa os dois. -->
+    <logger name="ccbank.interceptador.esquerdo" level="INFO" additivity="false">
+        <appender-ref ref="ESQUERDO"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+    <logger name="ccbank.interceptador.direito" level="INFO" additivity="false">
+        <appender-ref ref="DIREITO"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
     <root level="INFO">
-        <appender-ref ref="ARQUIVO"/>
         <appender-ref ref="CONSOLE"/>
     </root>
 </configuration>
