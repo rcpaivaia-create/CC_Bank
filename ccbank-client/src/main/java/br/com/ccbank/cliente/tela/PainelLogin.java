@@ -40,6 +40,18 @@ final class PainelLogin extends JPanel {
         caixa.add(new JLabel("Senha:"), c);
         c.gridx = 1;
         caixa.add(senha, c);
+        JButton listar = new JButton("Listar operadores...");
+        listar.addActionListener(e -> {
+            OperadorEstudo o = SeletorOperador.escolher(this);
+            if (o != null) {
+                usuario.setText(o.login());
+                senha.setText(DadosEstudo.SENHA_OPERADOR);
+            }
+        });
+        c.gridx = 0;
+        c.gridy = 2;
+        c.anchor = GridBagConstraints.WEST;
+        caixa.add(listar, c);
         c.gridx = 1;
         c.gridy = 2;
         c.anchor = GridBagConstraints.EAST;
