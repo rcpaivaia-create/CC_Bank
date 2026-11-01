@@ -53,13 +53,13 @@ final class FormularioOperacao extends JPanel {
         this.tipo = tipo;
         Formulario f = new Formulario();
         f.campo("Cooperativa:", cooperativa);
-        f.campo("Conta:", conta);
+        f.campo("Conta:", comBotaoListar(conta, this::preencherOrigem));
         if (tipo.temValor) {
             f.campo("Valor:", valor);
         }
         if (tipo.temDestino) {
             f.campo("Cooperativa destino:", cooperativaDestino);
-            f.campo("Conta destino:", contaDestino);
+            f.campo("Conta destino:", comBotaoListar(contaDestino, this::preencherDestino));
         }
         f.campo("Senha do cliente:", senha);
         JButton executar = new JButton("Executar");
@@ -74,6 +74,32 @@ final class FormularioOperacao extends JPanel {
         resultado.add(transacao);
         f.linhaInteira(resultado);
         add(f, BorderLayout.NORTH);
+    }
+
+    private JPanel comBotaoListar(JTextField campo, Runnable aoListar) {
+        JPanel painel = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 0));
+        JButton listar = new JButton("Listar...");
+        listar.addActionListener(e -> aoListar.run());
+        painel.add(campo);
+        painel.add(listar);
+        return painel;
+    }
+
+    private void preencherOrigem() {
+        ContaEstudo c = SeletorConta.escolher(this);
+        if (c != null) {
+            cooperativa.setText(c.cooperativa());
+            conta.setText(c.numero());
+            senha.setText(DadosEstudo.SENHA_CONTA);
+        }
+    }
+
+    private void preencherDestino() {
+        ContaEstudo c = SeletorConta.escolher(this);
+        if (c != null) {
+            cooperativaDestino.setText(c.cooperativa());
+            contaDestino.setText(c.numero());
+        }
     }
 
     private void executar() {

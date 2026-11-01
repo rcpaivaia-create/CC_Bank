@@ -44,9 +44,12 @@ final class PainelExtrato extends JPanel {
     PainelExtrato(PainelLado lado) {
         super(new BorderLayout(0, 6));
         this.lado = lado;
+        java.time.LocalDate hoje = java.time.LocalDate.now();
+        inicio.setText(DatasExtrato.inicio(hoje));
+        fim.setText(DatasExtrato.fim(hoje));
         Formulario f = new Formulario();
         f.campo("Cooperativa:", cooperativa);
-        f.campo("Conta:", conta);
+        f.campo("Conta:", comBotaoListar());
         f.campo("Data início (DD/MM/AAAA):", inicio);
         f.campo("Data fim (DD/MM/AAAA):", fim);
         f.campo("Senha do cliente:", senha);
@@ -57,6 +60,22 @@ final class PainelExtrato extends JPanel {
         f.linhaInteira(situacao);
         add(f, BorderLayout.NORTH);
         add(new JScrollPane(new JTable(modelo)), BorderLayout.CENTER);
+    }
+
+    private JPanel comBotaoListar() {
+        JPanel painel = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 0));
+        JButton listar = new JButton("Listar...");
+        listar.addActionListener(e -> {
+            ContaEstudo c = SeletorConta.escolher(this);
+            if (c != null) {
+                cooperativa.setText(c.cooperativa());
+                conta.setText(c.numero());
+                senha.setText(DadosEstudo.SENHA_CONTA);
+            }
+        });
+        painel.add(conta);
+        painel.add(listar);
+        return painel;
     }
 
     private void executar() {
