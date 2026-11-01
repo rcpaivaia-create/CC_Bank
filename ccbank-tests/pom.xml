@@ -25,6 +25,11 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>br.com.ccbank</groupId>
+            <artifactId>ccbank-interceptor</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>

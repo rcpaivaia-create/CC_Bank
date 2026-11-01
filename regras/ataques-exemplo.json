@@ -1,0 +1,10 @@
+[
+  { "nome": "valor-adulterado", "direcao": "REQUISICAO", "quando": {"00001":"saque"}, "acoes": [{"tipo":"SET","rotulo":"00030","valor":"5.00"}] },
+  { "nome": "deposito-inflado", "direcao": "REQUISICAO", "quando": {"00001":"deposito"}, "acoes": [{"tipo":"SET","rotulo":"00030","valor":"10000.00"}] },
+  { "nome": "transferencia-desviada", "direcao": "REQUISICAO", "quando": {"00001":"transferencia"}, "acoes": [{"tipo":"SET","rotulo":"00021","valor":"100010"}] },
+  { "nome": "origem-falsificada", "direcao": "REQUISICAO", "quando": {"00001":"saque"}, "acoes": [{"tipo":"SET","rotulo":"00004","valor":"9999"},{"tipo":"SET","rotulo":"00005","valor":"999"},{"tipo":"SET","rotulo":"00006","valor":"999"}] },
+  { "nome": "operador-falsificado", "direcao": "REQUISICAO", "quando": {"00001":"saque"}, "acoes": [{"tipo":"SET","rotulo":"00002","valor":"ana.lima"}] },
+  { "nome": "resposta-falsa", "direcao": "RESPOSTA", "quando": {"00090":"003"}, "acoes": [{"tipo":"SET","rotulo":"00090","valor":"000"}] },
+  { "nome": "saldo-exibido-falso", "direcao": "RESPOSTA", "quando": {"00092":"~.+"}, "acoes": [{"tipo":"SET","rotulo":"00092","valor":"9999.99"}] },
+  { "nome": "validacao-falsificada", "direcao": "RESPOSTA", "quando": {"00090":"002"}, "acoes": [{"tipo":"SET","rotulo":"00090","valor":"000"}] }
+]
