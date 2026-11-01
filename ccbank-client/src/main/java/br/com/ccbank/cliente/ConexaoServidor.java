@@ -45,6 +45,11 @@ public final class ConexaoServidor {
         return host + ":" + porta;
     }
 
+    /** Nome do serviço de destino conforme a porta: a porta do interceptador do lado, ou o servidor. */
+    static String nomeDoServico(LadoCliente lado, int porta) {
+        return porta == lado.portaInterceptador() ? "Interceptador" : "Servidor";
+    }
+
     public synchronized Resposta enviar(Mensagem req) throws IOException {
         conectarSeNecessario();
         long inicio = System.nanoTime();
@@ -99,8 +104,7 @@ public final class ConexaoServidor {
             } catch (IOException ignorada) {
                 // nada a fazer
             }
-            String servico = porta == lado.portaInterceptador() ? "Interceptador" : "Servidor";
-            String mensagem = servico + " não disponível em " + endereco();
+            String mensagem = nomeDoServico(lado, porta) + " não disponível em " + endereco();
             log.warn("[{}] {}", lado.sigla(), mensagem);
             throw new ServicoIndisponivelException(mensagem, e);
         }

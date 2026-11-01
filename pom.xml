@@ -14,6 +14,7 @@
         <module>ccbank-protocol</module>
         <module>ccbank-server</module>
         <module>ccbank-client</module>
+        <module>ccbank-interceptor</module>
         <module>ccbank-tests</module>
     </modules>
 
